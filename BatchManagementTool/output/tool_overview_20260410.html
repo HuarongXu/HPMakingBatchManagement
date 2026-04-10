@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HP Making Batch Management Tool - 应用说明</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121933;
+      --panel-2: #182142;
+      --text: #edf2ff;
+      --muted: #a9b6d3;
+      --accent: #67e8f9;
+      --accent-2: #8b5cf6;
+      --ok: #34d399;
+      --warn: #fbbf24;
+      --line: rgba(255,255,255,0.09);
+      --shadow: 0 12px 40px rgba(0,0,0,.28);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top right, rgba(103,232,249,.12), transparent 28%),
+                  radial-gradient(circle at top left, rgba(139,92,246,.14), transparent 32%),
+                  var(--bg);
+      line-height: 1.65;
+    }
+    .hero {
+      padding: 72px 24px 42px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0));
+    }
+    .container { max-width: 1180px; margin: 0 auto; }
+    .hero h1 {
+      margin: 0 0 12px;
+      font-size: 40px;
+      line-height: 1.15;
+      letter-spacing: .3px;
+    }
+    .hero p {
+      margin: 0;
+      max-width: 900px;
+      color: var(--muted);
+      font-size: 18px;
+    }
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 22px;
+    }
+    .badge {
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.08);
+      color: #dbe6ff;
+      font-size: 14px;
+    }
+    main { padding: 30px 24px 80px; }
+    section {
+      margin-top: 26px;
+      background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.015));
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .section-head {
+      padding: 22px 26px 10px;
+      border-bottom: 1px solid rgba(255,255,255,.05);
+      background: linear-gradient(180deg, rgba(255,255,255,.02), transparent);
+    }
+    .section-head h2 { margin: 0; font-size: 28px; }
+    .section-head p { margin: 8px 0 0; color: var(--muted); }
+    .content { padding: 22px 26px 28px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      padding: 18px;
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,.06);
+      border-radius: 16px;
+    }
+    .card h3 { margin: 0 0 8px; font-size: 18px; }
+    .card p { margin: 0; color: var(--muted); font-size: 14px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      overflow: hidden;
+      border-radius: 14px;
+    }
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      padding: 13px 14px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    th {
+      background: var(--panel-2);
+      font-weight: 600;
+      color: #eef4ff;
+    }
+    tr:nth-child(even) td { background: rgba(255,255,255,.015); }
+    .formula {
+      margin: 14px 0;
+      padding: 18px 20px;
+      border-radius: 16px;
+      background: linear-gradient(90deg, rgba(103,232,249,.08), rgba(139,92,246,.08));
+      border: 1px solid rgba(255,255,255,.08);
+      font-size: 20px;
+      overflow-x: auto;
+    }
+    .note, .example {
+      padding: 18px 20px;
+      border-radius: 16px;
+      margin-top: 14px;
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .note { background: rgba(251,191,36,.08); }
+    .example { background: rgba(52,211,153,.08); }
+    ul { margin: 8px 0 0 20px; }
+    .kpi {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .kpi .item {
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,.06);
+      border-radius: 18px;
+      padding: 18px;
+    }
+    .kpi .item strong { display: block; font-size: 28px; margin-bottom: 6px; }
+    .muted { color: var(--muted); }
+    footer {
+      max-width: 1180px;
+      margin: 28px auto 0;
+      padding: 0 24px 42px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    code {
+      background: rgba(255,255,255,.08);
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-family: Consolas, monospace;
+      color: #e8f8ff;
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="container">
+      <h1>HP Making Batch Management Tool</h1>
+      <p>
+        一个面向洗护制造场景的批次智能辅助决策工具。系统结合多源计划数据、产线与机组约束、双层容差控制、局部评分排序与可解释输出，帮助计划团队在复杂的 MOQ 与班次容量约束下形成更稳定、更透明的搅拌批次方案。
+      </p>
+      <div class="badge-row">
+        <div class="badge">Rule-based Scheduling</div>
+        <div class="badge">Heuristic Batch Formation</div>
+        <div class="badge">Dual-Tolerance Control</div>
+        <div class="badge">Explainable Planning Output</div>
+        <div class="badge">Date-Shift Capacity Tracking</div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <section>
+        <div class="section-head">
+          <h2>1. 工具价值与应用场景</h2>
+          <p>该工具用于支持 HP 洗发水、护发素生产计划的批次生成、搅拌系统分配、超限识别与过程解释。</p>
+        </div>
+        <div class="content">
+          <div class="kpi">
+            <div class="item"><strong>多源数据整合</strong><span class="muted">ZCPRS / ZC228 / Parameter / Making Capacity / Conversion List</span></div>
+            <div class="item"><strong>多层规则控制</strong><span class="muted">WIP、班次、产线、系统、MOQ、白名单</span></div>
+            <div class="item"><strong>局部智能决策</strong><span class="muted">可行组合筛选 + 系统候选评分</span></div>
+            <div class="item"><strong>报表可解释</strong><span class="muted">Orders / Batches / Alerts / Decision Explain</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>2. 数据源与主数据结构</h2>
+          <p>工具以生产计划主表为核心，结合产品参数、搅拌能力与半批白名单形成完整决策链。</p>
+        </div>
+        <div class="content">
+          <table>
+            <thead>
+              <tr><th>数据源</th><th>核心字段</th><th>业务作用</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>ZCPRS</td><td>Order Number, Material, Work Center, Planned Quantity, Start/End DateTime</td><td>生产计划主表，提供订单、时间、产线与计划量。</td></tr>
+              <tr><td>ZC228</td><td>Parent Ord, Matl-Comp, Amt Reqd</td><td>WIP 使用信息，作为扩展参考数据源加载。</td></tr>
+              <tr><td>Parameter.csv</td><td>Material, Matl-Comp, Type, SUF, Brand, Seg</td><td>产品类型、WIP、Segment 与展示字段来源。</td></tr>
+              <tr><td>Making Capacity.xlsx</td><td>System, Supported MSU, Shift Limits</td><td>定义 GSS1+GSS2、GSS3、GSS4 等系统能力与班次上限。</td></tr>
+              <tr><td>12t_to_6t Conversion List</td><td>WIP Code</td><td>决定 GSS1+GSS2 是否允许 half batch。</td></tr>
+            </tbody>
+          </table>
+          <div class="note">
+            <strong>当前实现说明：</strong>运行时 <code>MSU Demand</code> 主要直接采用输入计划量；<code>SUF</code> 仍保留在报表中供业务校验与展示。
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>3. 核心计算逻辑</h2>
+          <p>系统围绕班次、目标 MOQ、容差区间与物理批次数进行层层判断。</p>
+        </div>
+        <div class="content">
+          <div class="formula">
+            班次计算：<br />
+            N = 00:00–07:59，D = 08:00–15:59，M = 16:00–23:59
+          </div>
+          <div class="formula">
+            评分元组：<br />
+            Score = (overflow, gss12_small, priority, usage, closest, system_name)
+          </div>
+          <ul>
+            <li><strong>overflow</strong>：是否超该日期该班次上限</li>
+            <li><strong>gss12_small</strong>：GSS1+GSS2 做 2.2 小批的惩罚</li>
+            <li><strong>priority</strong>：系统优先级，GSS1+GSS2 &lt; GSS3 &lt; GSS4</li>
+            <li><strong>usage</strong>：该日期该班次当前已占用的物理批次数</li>
+            <li><strong>closest</strong>：系统能力与目标规格的贴近程度</li>
+          </ul>
+          <div class="note">
+            <strong>说明：</strong>当前工具不是全局最优求解器，而是“规则筛选 + 启发式组合 + 局部评分排序”的混合决策模式。
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>4. 双层容差机制</h2>
+          <p>Preferred 用于优选，Hard 用于兜底可行性控制；多个 4.4 MOQ 的目标会按批次数放大容差。</p>
+        </div>
+        <div class="content">
+          <table>
+            <thead>
+              <tr><th>Target</th><th>Preferred 区间</th><th>Hard 区间</th><th>说明</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>2.2</td><td>2.12 ~ 2.28</td><td>1.90 ~ 2.50</td><td>标准小批区间</td></tr>
+              <tr><td>4.4</td><td>4.28 ~ 4.52</td><td>4.10 ~ 4.70</td><td>标准主批区间</td></tr>
+              <tr><td>11.0</td><td>10.76 ~ 11.24</td><td>10.30 ~ 11.70</td><td>3批场景，容差相对单批放大</td></tr>
+            </tbody>
+          </table>
+          <div class="example">
+            <strong>简化案例：</strong>订单 <code>2998987389</code>，Load = 11.489，Batch Count = 3。<br />
+            旧逻辑容易误把目标看成 13.2；当前逻辑会更合理地识别为 <code>Target = 11.0</code>，并给出：<br />
+            <code>Preferred = [10.760, 11.240]</code>，<code>Hard = [10.300, 11.700]</code>。<br />
+            因为 11.489 高于 Preferred，但仍低于 Hard 上界，所以属于“可接受但非最优”的多批次命中。
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>5. 组合判断逻辑</h2>
+          <p>系统先判断能不能搭，再判断搭好以后该给哪个系统，体现“规则优先、评分辅助”的思想。</p>
+        </div>
+        <div class="content">
+          <div class="grid">
+            <div class="card">
+              <h3>Step 1：按 WIP 分组</h3>
+              <p>只有相同 WIP 的订单才会进入同一批次规划池。</p>
+            </div>
+            <div class="card">
+              <h3>Step 2：小单多订单组合 + 大目标优先</h3>
+              <p>小单优先通过多订单组合（2、3 甚至更多）尝试 4.4 / 2.2 标准 MOQ 搭批；普通单按目标从大到小降序尝试，优先合成更大批次。</p>
+            </div>
+            <div class="card">
+              <h3>Step 3：先同日、再跨日</h3>
+              <p>满足业务窗口才允许进入搭批候选集合。</p>
+            </div>
+            <div class="card">
+              <h3>Step 4：合法系统评分排序</h3>
+              <p>多个系统都可行时，才用评分元组决定最终系统。</p>
+            </div>
+            <div class="card">
+              <h3>Step 5：二次合并（可开关）</h3>
+              <p>首轮分配后，若发现“欠装单批 + 同WIP同系统”可升级到更高合法目标（如17.6），执行 Second Pass Merge。</p>
+            </div>
+            <div class="card">
+              <h3>Step 6：超限再平衡</h3>
+              <p>二次合并后再执行系统借产能（如 GSS3 超限回退到 GSS1+GSS2），并重建日期+班次占用。</p>
+            </div>
+          </div>
+          <div class="note">
+            <strong>关键理解：</strong>“是否能搭批”主要靠规则判断；“搭好了以后选哪个系统”才主要靠打分。
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>5.1 新增运行逻辑（Second Pass Merge）</h2>
+          <p>该流程用于修复“理论可大批、首轮未合并”的场景，同时保证不破坏原有班次与产能规则。</p>
+        </div>
+        <div class="content">
+          <div class="formula">
+            运行顺序：<br />
+            首轮搭批与系统分配 → 二次合并（可开关）→ 超限再平衡 → 班次重汇总 → 输出报表
+          </div>
+          <table>
+            <thead>
+              <tr><th>阶段</th><th>判断条件</th><th>输出结果</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>候选筛选</td>
+                <td>同系统 + 同WIP + 同产品类型；至少一侧为欠装单批（Load/Target &lt; 0.90）</td>
+                <td>得到可尝试合并的批次对</td>
+              </tr>
+              <tr>
+                <td>目标选择</td>
+                <td>合并后总载荷可命中合法 MOQ 目标（硬容差内），且系统支持该目标</td>
+                <td>生成合并后的新目标批量（如 17.6）</td>
+              </tr>
+              <tr>
+                <td>保护校验</td>
+                <td>不允许任何系统-日期-班次的超限程度恶化；避免健康批次连环放大</td>
+                <td>只保留“修复型合并”</td>
+              </tr>
+              <tr>
+                <td>重汇总</td>
+                <td>按订单的日期+班次分摊 batch_count，再重建班次占用</td>
+                <td>Orders / Batches / Alerts 口径一致</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="example">
+            <strong>例子：</strong><code>3019518253(3.538)</code> + <code>2990748521(13.821)</code><br />
+            首轮可能拆成两个批次；二次合并会将其升级为同一批次目标 <code>17.6</code>，并在后续再平衡阶段检查班次上限风险。
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>6. 典型案例讲解</h2>
+          <p>以下案例来自当前工具实际运行结果，便于业务快速理解“为什么这样分配”。</p>
+        </div>
+        <div class="content">
+          <table>
+            <thead>
+              <tr><th>案例</th><th>现象</th><th>解释</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>2978480642</td>
+                <td>2.183 → GSS3</td>
+                <td>目标为 2.2，落在 Preferred 区间内，属于标准小批直接命中。</td>
+              </tr>
+              <tr>
+                <td>2998992825 + 2994904204</td>
+                <td>2.060 → 2.2 搭批成功</td>
+                <td>未进入 Preferred，但落在 Hard 区间内，因此允许搭成“次优但可接受”的 2.2 批次。</td>
+              </tr>
+              <tr>
+                <td>2994901924</td>
+                <td>3.821 / 4.4 保留备注</td>
+                <td>明显低于一个完整 4.4 MOQ，因此保留“单独开批”提示，避免业务误判为漏搭批。</td>
+              </tr>
+              <tr>
+                <td>2998979332</td>
+                <td>2.237 选 GSS3 而非 GSS1+GSS2</td>
+                <td>两个系统都能做，但 GSS1+GSS2 做 2.2 会吃 small-batch penalty，因此评分排序中 GSS3 胜出。</td>
+              </tr>
+              <tr>
+                <td>2998987389</td>
+                <td>11.489 / 3批 → Target 11.0</td>
+                <td>多批次目标按更合理的组合识别，容差同步放大，避免把 3 批护发素错误理解成 13.2 目标。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>7. 算法架构说明</h2>
+          <p>当前工具不是单一算法模型，而是“规则引擎 + 启发式搭批 + 局部组合搜索 + 多指标评分排序”的混合决策架构。</p>
+        </div>
+        <div class="content">
+          <div class="grid">
+            <div class="card">
+              <h3>Rule Engine</h3>
+              <p>先做约束过滤：同 WIP、产品类型匹配、产线限制、时间窗限制、白名单限制、班次容量限制。只有通过这些规则的订单才会进入下一步。</p>
+            </div>
+            <div class="card">
+              <h3>Heuristic Batch Formation</h3>
+              <p>采用启发式与贪心逻辑进行组批，优先尝试标准 MOQ（如 4.4 / 2.2），先同日，再跨日，而不是对全量组合做全局穷举。</p>
+            </div>
+            <div class="card">
+              <h3>Local Combinational Search</h3>
+              <p>在余量拆分和目标贴近环节，使用局部 DFS 组合搜索，寻找最接近目标规格的尺寸组合，例如 4.4 + 2.2、4.4 + 4.4 + 2.2 等。</p>
+            </div>
+            <div class="card">
+              <h3>Multi-Criteria Ranking</h3>
+              <p>当多个系统都合法时，使用评分元组做词典序排序，从而选出更适合的 GSS 系统，而不是仅靠固定优先级。</p>
+            </div>
+          </div>
+
+          <div class="formula">
+            决策逻辑可以概括为：<br />
+            先判断能不能搭批 → 再判断目标 MOQ 是否可接受 → 最后在合法系统之间做局部评分排序
+          </div>
+
+          <div class="note">
+            <strong>重要说明：</strong>当前工具<strong>不是</strong>线性规划、整数规划或机器学习模型；它更接近一个面向制造业务的<strong>可解释启发式调度引擎</strong>。
+          </div>
+
+          <div class="example">
+            <strong>通俗理解：</strong><br />
+            可以把系统想象成一个三层判断器：<br />
+            <strong>第一层</strong>看规则合不合法；<br />
+            <strong>第二层</strong>看这组订单离目标 MOQ 够不够近；<br />
+            <strong>第三层</strong>如果两个系统都能做，再比较谁更合适。
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>8. 评分取胜的具体例子</h2>
+          <p>下面这个例子可以帮助理解：同一个订单目标相同、两个系统都能做时，系统是如何靠评分而不是靠直觉来做选择的。</p>
+        </div>
+        <div class="content">
+          <div class="example">
+            <strong>案例：</strong>订单 <code>2998979332</code><br />
+            实际结果：<code>Target = 2.2</code>，最终分配到 <code>GSS3</code>。<br /><br />
+            该订单在当前规则下，<code>GSS1 + GSS2</code> 和 <code>GSS3</code> 都是合法候选系统。<br />
+            于是系统进入评分比较，而不是直接按“谁先出现就用谁”。
+          </div>
+
+          <table>
+            <thead>
+              <tr><th>候选系统</th><th>评分元组</th><th>解释</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>GSS1 + GSS2</td>
+                <td>(0, 1, 0, 0, 2.2)</td>
+                <td>不超限，但属于 GSS1+GSS2 做小批次，所以会吃一个 <code>gss12_small = 1</code> 的惩罚。</td>
+              </tr>
+              <tr>
+                <td>GSS3</td>
+                <td>(0, 0, 1, 0, 0.0)</td>
+                <td>不超限，且 GSS3 做 2.2 是标准场景，因此 <code>gss12_small = 0</code>。</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="formula">
+            比较顺序：<br />
+            overflow → gss12_small → priority → usage → closest
+          </div>
+
+          <div class="note">
+            <strong>为什么最后选 GSS3？</strong><br />
+            两个系统在第一位 <code>overflow</code> 都是 0，打平；<br />
+            到第二位 <code>gss12_small</code> 时：<br />
+            <code>GSS1 + GSS2 = 1</code>，<code>GSS3 = 0</code>。<br />
+            因为评分是从左到右逐项比较，所以到这里就已经分出胜负，最终 <strong>GSS3 取胜</strong>。
+          </div>
+
+          <div class="example">
+            <strong>业务意义：</strong><br />
+            这个例子说明，系统并不是机械地“永远优先 GSS1 + GSS2”，而是会考虑：<br />
+            在满足业务规则的前提下，<strong>谁更适合做这一个目标批次</strong>。<br />
+            对 2.2 小批来说，GSS3 往往是更自然、更合理的承接系统。
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>9. 报表与可解释输出</h2>
+          <p>系统输出不仅有结果，还有过程解释，支持培训、审计与业务确认。</p>
+        </div>
+        <div class="content">
+          <ul>
+            <li><strong>Orders</strong>：逐单结果，包括分配系统、批次、备注、告警、Decision Explain</li>
+            <li><strong>Batches</strong>：按系统 × 日期 × 班次统计真实物理批次数</li>
+            <li><strong>Alerts</strong>：按统一格式输出超限与异常</li>
+            <li><strong>Summary Tables</strong>：按 System / Line / Seg 多维汇总真实批次数</li>
+          </ul>
+          <div class="example">
+            <strong>Decision Explain 示例：</strong><br />
+            <code>Target=2.2; Load=2.237; Pref=[2.120,2.280]; Hard=[1.900,2.500]; Hit=IN_PREFERRED; Score(overflow=0,gss12_small=0,priority=1,usage=1,closest=0.000); System=GSS3</code>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>10. 算法标签（用于展示）</h2>
+          <p>如果需要对外或对管理层展示，可用以下方式描述本工具的技术特征。</p>
+        </div>
+        <div class="content">
+          <div class="grid">
+            <div class="card"><h3>Multi-Source Planning Integration</h3><p>多源主数据与计划数据融合，形成统一决策基座。</p></div>
+            <div class="card"><h3>Heuristic Batch Formation</h3><p>基于 WIP、班次、产线、时间窗的启发式搭批策略。</p></div>
+            <div class="card"><h3>Dual-Tolerance Feasibility Control</h3><p>通过 Preferred / Hard 双层区间提升稳定性与业务可接受性。</p></div>
+            <div class="card"><h3>Explainable Assignment Engine</h3><p>每个订单可追溯目标、容差、命中状态与系统评分。</p></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    文档生成日期：2026-04-10。当前内容已基于工具现行实现逻辑整理，包含多订单搭批组合、大目标优先策略、双层容差控制、二次合并与可解释决策输出。可直接用于内部演示、培训或业务介绍。若后续规则更新，建议同步更新 Requirement 文档与本 HTML 说明页。
+  </footer>
+</body>
+</html>

@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Data files (large / sensitive)
+1.DataBase/
+*.xlsm
+
+# Output reports (generated)
+BatchManagementTool/output/batch_report_*.xlsx
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Test cache
+.pytest_cache/
+
+# Historical copies (development snapshots)
+BatchManagementTool/src/logic copy *.py
+BatchManagementTool/src/main copy.py
+
+# Placeholder / scratch
+path/
