@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HP Making Batch Management Tool — Introduction</title>
+
+    <!-- === FONTS === -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+
+    <style>
+        /* =========================================
+           VIEWPORT FITTING: MANDATORY BASE STYLES
+           ========================================= */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body { height: 100%; overflow-x: hidden; }
+        html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+
+        .slide {
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            scroll-snap-align: start;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .slide-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            max-height: 100%;
+            overflow: hidden;
+            padding: var(--slide-padding);
+        }
+
+        :root {
+            --title-size: clamp(1.5rem, 5vw, 4rem);
+            --h2-size: clamp(1.25rem, 3.5vw, 2.5rem);
+            --h3-size: clamp(1rem, 2.5vw, 1.75rem);
+            --body-size: clamp(0.75rem, 1.5vw, 1.125rem);
+            --small-size: clamp(0.65rem, 1vw, 0.875rem);
+            --slide-padding: clamp(1.5rem, 5vw, 5rem);
+            --content-gap: clamp(0.5rem, 2vw, 2rem);
+            --element-gap: clamp(0.25rem, 1vw, 1rem);
+        }
+
+        .card, .container, .content-box {
+            max-width: min(90vw, 1000px);
+            max-height: min(80vh, 700px);
+        }
+
+        .feature-list, .bullet-list { gap: clamp(0.4rem, 1vh, 1rem); }
+        .feature-list li, .bullet-list li { font-size: var(--body-size); line-height: 1.4; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+            gap: clamp(0.5rem, 1.5vw, 1rem);
+        }
+
+        img, .image-container {
+            max-width: 100%;
+            max-height: min(50vh, 400px);
+            object-fit: contain;
+        }
+
+        /* === RESPONSIVE BREAKPOINTS === */
+        @media (max-height: 700px) {
+            :root {
+                --slide-padding: clamp(1rem, 3vw, 2.5rem);
+                --content-gap: clamp(0.4rem, 1.5vw, 1rem);
+                --title-size: clamp(1.25rem, 4.5vw, 2.5rem);
+                --h2-size: clamp(1rem, 3vw, 1.75rem);
+            }
+        }
+
+        @media (max-height: 600px) {
+            :root {
+                --slide-padding: clamp(0.5rem, 2.5vw, 1.5rem);
+                --content-gap: clamp(0.3rem, 1vw, 0.75rem);
+                --title-size: clamp(1.1rem, 4vw, 2rem);
+                --body-size: clamp(0.7rem, 1.2vw, 0.95rem);
+            }
+            .nav-dots, .keyboard-hint, .decorative { display: none; }
+        }
+
+        @media (max-height: 500px) {
+            :root {
+                --slide-padding: clamp(0.4rem, 2vw, 1rem);
+                --title-size: clamp(1rem, 3.5vw, 1.5rem);
+                --h2-size: clamp(0.9rem, 2.5vw, 1.25rem);
+                --body-size: clamp(0.65rem, 1vw, 0.85rem);
+            }
+        }
+
+        @media (max-width: 600px) {
+            :root { --title-size: clamp(1.25rem, 7vw, 2.5rem); }
+            .grid, .two-col { grid-template-columns: 1fr; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.2s !important;
+            }
+            html { scroll-behavior: auto; }
+        }
+
+        /* =========================================
+           THEME: PAPER & INK
+           Warm cream · Charcoal · Crimson accent
+           Cormorant Garamond (display) + Source Serif 4 (body)
+           ========================================= */
+        :root {
+            --cream: #faf9f7;
+            --cream-dark: #f0ede8;
+            --charcoal: #1a1a1a;
+            --charcoal-soft: #333;
+            --muted: #777;
+            --muted-light: #aaa;
+            --crimson: #c41e3a;
+            --crimson-soft: rgba(196, 30, 58, 0.08);
+            --crimson-border: rgba(196, 30, 58, 0.2);
+            --rule-color: rgba(26, 26, 26, 0.12);
+        }
+
+        body {
+            background: var(--cream);
+            color: var(--charcoal);
+            font-family: 'Source Serif 4', Georgia, serif;
+            font-weight: 400;
+            line-height: 1.6;
+        }
+
+        /* =========================================
+           NAVIGATION DOTS
+           ========================================= */
+        .nav-dots {
+            position: fixed;
+            right: clamp(14px, 2.5vw, 28px);
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            border: 1.5px solid var(--muted-light);
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            padding: 0;
+        }
+
+        .dot.active {
+            background: var(--crimson);
+            border-color: var(--crimson);
+            transform: scale(1.4);
+        }
+
+        .dot:hover {
+            border-color: var(--charcoal);
+        }
+
+        /* =========================================
+           SLIDE COMMON STYLES
+           ========================================= */
+        .slide {
+            background: var(--cream);
+            border-bottom: 1px solid var(--rule-color);
+        }
+
+        /* Elegant horizontal rules */
+        .slide::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: var(--slide-padding);
+            right: var(--slide-padding);
+            height: 1px;
+            background: var(--rule-color);
+        }
+
+        /* Section label */
+        .section-label {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(0.65rem, 1vw, 0.8rem);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: clamp(0.6rem, 1.5vh, 1rem);
+        }
+
+        .section-label .num {
+            color: var(--crimson);
+            font-weight: 600;
+        }
+
+        /* Headings */
+        .slide-heading {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: var(--h2-size);
+            font-weight: 700;
+            color: var(--charcoal);
+            line-height: 1.15;
+            margin-bottom: clamp(0.3rem, 1vh, 0.8rem);
+        }
+
+        .slide-heading em {
+            font-style: italic;
+            color: var(--crimson);
+            font-weight: 600;
+        }
+
+        .slide-sub {
+            font-size: var(--body-size);
+            color: var(--muted);
+            max-width: 52ch;
+            line-height: 1.65;
+        }
+
+        /* Crimson divider */
+        .divider {
+            width: 48px;
+            height: 2px;
+            background: var(--crimson);
+            margin: clamp(0.5rem, 1.2vh, 0.8rem) 0;
+        }
+
+        /* Two-column layout */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(1.5rem, 4vw, 3.5rem);
+            align-items: start;
+        }
+
+        /* Content card */
+        .ink-card {
+            border: 1px solid var(--rule-color);
+            border-radius: 2px;
+            padding: clamp(0.8rem, 2vw, 1.6rem);
+            background: var(--cream);
+            position: relative;
+        }
+
+        .ink-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            background: var(--crimson);
+        }
+
+        .ink-card h4 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(0.9rem, 1.4vw, 1.15rem);
+            font-weight: 700;
+            color: var(--charcoal);
+            margin-bottom: clamp(0.2rem, 0.5vh, 0.3rem);
+        }
+
+        .ink-card p {
+            font-size: var(--small-size);
+            color: var(--muted);
+            line-height: 1.55;
+        }
+
+        /* Accent card — crimson background */
+        .crimson-card {
+            background: var(--crimson);
+            color: #fff;
+            border-radius: 2px;
+            padding: clamp(0.8rem, 2vw, 1.6rem);
+        }
+
+        .crimson-card h4 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(0.9rem, 1.4vw, 1.15rem);
+            font-weight: 700;
+            margin-bottom: clamp(0.2rem, 0.5vh, 0.3rem);
+        }
+
+        .crimson-card p {
+            font-size: var(--small-size);
+            opacity: 0.9;
+            line-height: 1.55;
+        }
+
+        /* Soft tinted card */
+        .tint-card {
+            background: var(--crimson-soft);
+            border: 1px solid var(--crimson-border);
+            border-radius: 2px;
+            padding: clamp(0.8rem, 2vw, 1.6rem);
+        }
+
+        .tint-card h4 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(0.9rem, 1.4vw, 1.15rem);
+            font-weight: 700;
+            color: var(--crimson);
+            margin-bottom: clamp(0.2rem, 0.5vh, 0.3rem);
+        }
+
+        .tint-card p {
+            font-size: var(--small-size);
+            color: var(--charcoal-soft);
+            line-height: 1.55;
+        }
+
+        /* Neutral card */
+        .neutral-card {
+            background: var(--cream-dark);
+            border-radius: 2px;
+            padding: clamp(0.8rem, 2vw, 1.6rem);
+        }
+
+        .neutral-card h4 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(0.9rem, 1.4vw, 1.15rem);
+            font-weight: 700;
+            color: var(--charcoal);
+            margin-bottom: clamp(0.2rem, 0.5vh, 0.3rem);
+        }
+
+        .neutral-card p {
+            font-size: var(--small-size);
+            color: var(--muted);
+            line-height: 1.55;
+        }
+
+        /* Pull quote */
+        .pull-quote {
+            font-family: 'Cormorant Garamond', serif;
+            font-style: italic;
+            font-size: clamp(1rem, 2vw, 1.5rem);
+            color: var(--charcoal);
+            border-left: 3px solid var(--crimson);
+            padding-left: clamp(0.8rem, 1.5vw, 1.2rem);
+            line-height: 1.5;
+        }
+
+        /* Data table */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: var(--small-size);
+        }
+
+        .data-table th {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: var(--small-size);
+            font-weight: 700;
+            color: var(--crimson);
+            text-align: left;
+            padding: clamp(0.3rem, 0.6vw, 0.5rem) clamp(0.4rem, 0.8vw, 0.7rem);
+            border-bottom: 2px solid var(--crimson-border);
+            white-space: nowrap;
+        }
+
+        .data-table td {
+            padding: clamp(0.25rem, 0.5vw, 0.4rem) clamp(0.4rem, 0.8vw, 0.7rem);
+            border-bottom: 1px solid var(--rule-color);
+            color: var(--charcoal-soft);
+        }
+
+        .data-table tr:hover td {
+            background: var(--crimson-soft);
+        }
+
+        /* Tag pills */
+        .tag {
+            display: inline-block;
+            padding: 2px clamp(6px, 0.8vw, 10px);
+            border: 1px solid var(--rule-color);
+            border-radius: 2px;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(0.58rem, 0.85vw, 0.72rem);
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            color: var(--charcoal-soft);
+        }
+
+        .tag-crimson {
+            border-color: var(--crimson-border);
+            color: var(--crimson);
+            background: var(--crimson-soft);
+        }
+
+        /* Formula / code block */
+        .formula-block {
+            border: 1px solid var(--rule-color);
+            border-radius: 2px;
+            padding: clamp(0.4rem, 1vw, 0.8rem) clamp(0.6rem, 1.2vw, 1rem);
+            font-family: 'Source Serif 4', monospace;
+            font-size: var(--small-size);
+            color: var(--crimson);
+            background: var(--cream-dark);
+        }
+
+        /* Flow chain */
+        .flow-chain {
+            display: flex;
+            flex-wrap: wrap;
+            gap: clamp(0.2rem, 0.5vw, 0.4rem);
+            align-items: center;
+        }
+
+        .flow-item {
+            border: 1px solid var(--rule-color);
+            border-radius: 2px;
+            padding: clamp(0.25rem, 0.5vw, 0.4rem) clamp(0.4rem, 0.8vw, 0.7rem);
+            font-size: var(--small-size);
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        .flow-item.active {
+            border-color: var(--crimson-border);
+            color: var(--crimson);
+            background: var(--crimson-soft);
+        }
+
+        .flow-arrow {
+            color: var(--muted-light);
+            font-size: var(--small-size);
+        }
+
+        /* Big number stat */
+        .stat-num {
+            font-family: 'Cormorant Garamond', serif;
+            font-weight: 700;
+            color: var(--crimson);
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: clamp(0.55rem, 0.8vw, 0.68rem);
+            color: var(--muted);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        /* Drop cap */
+        .drop-cap::first-letter {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(2.5rem, 5vw, 3.5rem);
+            font-weight: 700;
+            color: var(--crimson);
+            float: left;
+            line-height: 0.8;
+            padding-right: clamp(0.3rem, 0.6vw, 0.5rem);
+            padding-top: 0.05em;
+        }
+
+        /* Geometric decoration — circle outline + line */
+        .geo-deco {
+            position: absolute;
+            pointer-events: none;
+        }
+
+        .geo-circle {
+            width: clamp(80px, 12vw, 140px);
+            height: clamp(80px, 12vw, 140px);
+            border: 1.5px solid var(--crimson-border);
+            border-radius: 50%;
+        }
+
+        .geo-line {
+            width: 1px;
+            height: clamp(40px, 8vh, 80px);
+            background: var(--crimson-border);
+        }
+
+        .geo-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--crimson);
+        }
+
+        /* =========================================
+           ANIMATIONS
+           ========================================= */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes expandWidth {
+            from { width: 0; }
+            to { width: 48px; }
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        .reveal.visible {
+            animation: fadeInUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        .reveal:nth-child(2) { animation-delay: 0.08s; }
+        .reveal:nth-child(3) { animation-delay: 0.16s; }
+        .reveal:nth-child(4) { animation-delay: 0.24s; }
+        .reveal:nth-child(5) { animation-delay: 0.32s; }
+        .reveal:nth-child(6) { animation-delay: 0.40s; }
+        .reveal:nth-child(7) { animation-delay: 0.48s; }
+        .reveal:nth-child(8) { animation-delay: 0.56s; }
+
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(-30px);
+        }
+        .reveal-left.visible {
+            animation: slideInLeft 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        .reveal-right {
+            opacity: 0;
+            transform: translateX(30px);
+        }
+        .reveal-right.visible {
+            animation: slideInRight 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        .reveal-divider {
+            width: 0;
+        }
+        .reveal-divider.visible {
+            animation: expandWidth 0.5s 0.2s ease forwards;
+        }
+
+        /* =========================================
+           FOOTER ELEMENTS
+           ========================================= */
+        .keyboard-hint {
+            position: fixed;
+            bottom: clamp(10px, 2vh, 18px);
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Cormorant Garamond', serif;
+            font-size: var(--small-size);
+            color: var(--muted-light);
+            z-index: 100;
+            pointer-events: none;
+            letter-spacing: 0.05em;
+        }
+
+        .slide-counter {
+            position: fixed;
+            bottom: clamp(10px, 2vh, 18px);
+            right: clamp(14px, 2.5vw, 28px);
+            font-family: 'Cormorant Garamond', serif;
+            font-size: var(--small-size);
+            color: var(--muted-light);
+            z-index: 100;
+            letter-spacing: 0.08em;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- === NAVIGATION DOTS === -->
+    <nav class="nav-dots" aria-label="Slide navigation">
+        <button class="dot active" data-slide="0" aria-label="Slide 1"></button>
+        <button class="dot" data-slide="1" aria-label="Slide 2"></button>
+        <button class="dot" data-slide="2" aria-label="Slide 3"></button>
+        <button class="dot" data-slide="3" aria-label="Slide 4"></button>
+        <button class="dot" data-slide="4" aria-label="Slide 5"></button>
+        <button class="dot" data-slide="5" aria-label="Slide 6"></button>
+        <button class="dot" data-slide="6" aria-label="Slide 7"></button>
+        <button class="dot" data-slide="7" aria-label="Slide 8"></button>
+        <button class="dot" data-slide="8" aria-label="Slide 9"></button>
+        <button class="dot" data-slide="9" aria-label="Slide 10"></button>
+        <button class="dot" data-slide="10" aria-label="Slide 11"></button>
+        <button class="dot" data-slide="11" aria-label="Slide 12"></button>
+        <button class="dot" data-slide="12" aria-label="Slide 13"></button>
+        <button class="dot" data-slide="13" aria-label="Slide 14"></button>
+        <button class="dot" data-slide="14" aria-label="Slide 15"></button>
+        <button class="dot" data-slide="15" aria-label="Slide 16"></button>
+    </nav>
+
+    <div class="keyboard-hint">↑ ↓ navigate</div>
+    <div class="slide-counter"><span id="current-slide">1</span> / 16</div>
+
+    <!-- ============================================================
+         SLIDE 01: TITLE
+         ============================================================ -->
+    <section class="slide" id="slide-0">
+        <!-- Geometric decorations -->
+        <div class="geo-deco" style="top:clamp(3rem,8vh,6rem);right:clamp(3rem,8vw,8rem);">
+            <div class="geo-circle"></div>
+        </div>
+        <div class="geo-deco" style="bottom:clamp(4rem,10vh,8rem);right:clamp(6rem,14vw,14rem);display:flex;flex-direction:column;align-items:center;gap:6px;">
+            <div class="geo-line"></div>
+            <div class="geo-dot"></div>
+        </div>
+        <div class="slide-content" style="justify-content:center;max-width:min(90vw,780px);">
+            <div class="reveal" style="margin-bottom:clamp(0.8rem,2.5vh,1.8rem);">
+                <span class="section-label" style="letter-spacing:0.25em;">PRODUCTION PLANNING · 2026</span>
+            </div>
+            <h1 class="reveal" style="font-family:'Cormorant Garamond',serif;font-size:clamp(2.5rem,7vw,5.5rem);font-weight:700;line-height:1.08;margin-bottom:clamp(0.3rem,1vh,0.6rem);">
+                HP Making Batch<br><em style="font-weight:400;font-style:italic;color:var(--crimson);">Management Tool</em>
+            </h1>
+            <div class="divider reveal-divider"></div>
+            <p class="reveal slide-sub" style="margin-bottom:clamp(1.2rem,3vh,2.2rem);max-width:46ch;">
+                面向 HP 洗护生产计划的批次智能管理与搅拌系统分配引擎。<br>
+                规则驱动 · 双层容差 · 可解释决策输出
+            </p>
+            <div class="reveal" style="display:flex;gap:clamp(1.2rem,3vw,2.5rem);">
+                <div>
+                    <div class="stat-num" style="font-size:clamp(2rem,4vw,3.2rem);">4</div>
+                    <div class="stat-label">数据源</div>
+                </div>
+                <div>
+                    <div class="stat-num" style="font-size:clamp(2rem,4vw,3.2rem);">4</div>
+                    <div class="stat-label">搅拌系统</div>
+                </div>
+                <div>
+                    <div class="stat-num" style="font-size:clamp(2rem,4vw,3.2rem);">10</div>
+                    <div class="stat-label">步流水线</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 02: CORE CHALLENGES
+         ============================================================ -->
+    <section class="slide" id="slide-1">
+        <div class="slide-content">
+            <div class="section-label reveal"><span class="num">01</span> · Challenge</div>
+            <h2 class="slide-heading reveal">解决什么<em>问题</em>？</h2>
+            <div class="divider reveal-divider"></div>
+            <p class="slide-sub reveal" style="margin-bottom:clamp(0.8rem,2vh,1.5rem);">
+                洗护生产计划面临的五个核心挑战
+            </p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:clamp(0.4rem,1vw,0.8rem);">
+                <div class="ink-card reveal">
+                    <h4>① 系统映射</h4>
+                    <p>不同产品 / 产线 / 班次如何映射到合适的搅拌系统？</p>
+                </div>
+                <div class="ink-card reveal">
+                    <h4>② 批次成型</h4>
+                    <p>如何在 1.1 / 2.2 / 4.4 及多倍 MOQ 下形成可执行批次？</p>
+                </div>
+                <div class="ink-card reveal">
+                    <h4>③ 产能均衡</h4>
+                    <p>班次产能限制下如何避免系统过载？</p>
+                </div>
+                <div class="ink-card reveal">
+                    <h4>④ 边界判断</h4>
+                    <p>"接近 MOQ""不足 MOQ""半批白名单"等情况统一处理</p>
+                </div>
+                <div class="ink-card reveal">
+                    <h4>⑤ 可审计性</h4>
+                    <p>每个订单为什么这样分配？ 计划员可追溯验证</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 03: ARCHITECTURE — 10-STEP PIPELINE
+         ============================================================ -->
+    <section class="slide" id="slide-2">
+        <div class="slide-content">
+            <div class="section-label reveal"><span class="num">02</span> · Architecture</div>
+            <h2 class="slide-heading reveal">十步处理<em>流水线</em></h2>
+            <div class="divider reveal-divider"></div>
+            <div class="flow-chain reveal" style="margin-bottom:clamp(0.8rem,2vh,1.5rem);">
+                <span class="flow-item active">1 读取数据</span><span class="flow-arrow">→</span>
+                <span class="flow-item">2 预处理</span><span class="flow-arrow">→</span>
+                <span class="flow-item">3 系统能力</span><span class="flow-arrow">→</span>
+                <span class="flow-item active">4 WIP 分组</span><span class="flow-arrow">→</span>
+                <span class="flow-item">5 搭批/拆批</span><span class="flow-arrow">→</span>
+                <span class="flow-item active">6 系统选择</span><span class="flow-arrow">→</span>
+                <span class="flow-item">7 产能记录</span><span class="flow-arrow">→</span>
+                <span class="flow-item">8 二次合并</span><span class="flow-arrow">→</span>
+                <span class="flow-item">9 再平衡</span><span class="flow-arrow">→</span>
+                <span class="flow-item active">10 报表</span>
+            </div>
+            <div class="two-col">
+                <div class="reveal-left">
+                    <div class="crimson-card" style="margin-bottom:clamp(0.4rem,1vh,0.6rem);">
+                        <h4>运行方式</h4>
+                        <div style="font-family:monospace;font-size:var(--small-size);opacity:0.9;margin-top:0.3rem;">
+                            python src/main.py --date 20260403
+                        </div>
+                    </div>
+                    <p style="font-size:var(--small-size);color:var(--muted);">
+                        输入日期 → 自动读取对应 CSV → 输出 Excel 报表
+                    </p>
+                </div>
+                <div class="reveal-right" style="display:flex;flex-direction:column;gap:clamp(0.3rem,0.6vh,0.4rem);">
+                    <div style="font-size:var(--small-size);display:flex;align-items:center;gap:0.4rem;">
+                        <span class="tag tag-crimson">前半段</span>
+                        <span style="color:var(--muted);">规则驱动 + 贪心搭批</span>
+                    </div>
+                    <div style="font-size:var(--small-size);display:flex;align-items:center;gap:0.4rem;">
+                        <span class="tag tag-crimson">后半段</span>
+                        <span style="color:var(--muted);">多维评分 + 系统分配</span>
+                    </div>
+                    <div style="font-size:var(--small-size);display:flex;align-items:center;gap:0.4rem;">
+                        <span class="tag tag-crimson">输出</span>
+                        <span style="color:var(--muted);">Orders / Batches / Alerts + Decision Explain</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 04: DATA SOURCES
+         ============================================================ -->
+    <section class="slide" id="slide-3">
+        <div class="slide-content">
+            <div class="section-label reveal"><span class="num">03</span> · Data</div>
+            <h2 class="slide-heading reveal">四个<em>数据源</em></h2>
+            <div class="divider reveal-divider"></div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:clamp(0.5rem,1.2vw,1rem);">
+                <div class="crimson-card reveal">
+                    <h4>ZCPRS</h4>
+                    <p>生产计划主表<br>Order No · Material · Work Center<br>Planned Qty · Start/End DateTime</p>
+                </div>
+                <div class="tint-card reveal">
+                    <h4>ZC228</h4>
+                    <p>WIP 消耗明细<br>Parent Ord · Matl-Comp · Amt Reqd<br>链接 WIP 与物料关系</p>
+                </div>
+                <div class="ink-card reveal">
+                    <h4>Parameter.csv</h4>
+                    <p>产品属性映射<br>Material · Matl-Comp · Type<br>SUF · Brand · Seg</p>
+                </div>
+                <div class="neutral-card reveal">
+                    <h4>Making Capacity</h4>
+                    <p>搅拌系统能力<br>机组名 · 支持规格 · 班次上限<br>产品适用性</p>
+                </div>
+            </div>
+            <div class="reveal" style="margin-top:clamp(0.5rem,1.5vh,1rem);display:flex;gap:clamp(0.3rem,0.6vw,0.5rem);flex-wrap:wrap;">
+                <span class="tag tag-crimson">Order Number</span>
+                <span class="tag tag-crimson">Material</span>
+                <span class="tag">WIP Code</span>
+                <span class="tag">Type (Shampoo/Cond)</span>
+                <span class="tag">Work Center</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 05: MAKING SYSTEMS
+         ============================================================ -->
+    <section class="slide" id="slide-4">
+        <div class="slide-content">
+            <div class="section-label reveal"><span class="num">04</span> · Systems</div>
+            <h2 class="slide-heading reveal">搅拌系统 <em>GSS1 — GSS4</em></h2>
+            <div class="divider reveal-divider"></div>
+            <p class="slide-sub reveal" style="margin-bottom:clamp(0.6rem,1.5vh,1rem);">
+                不同系统承担不同产品类型与批量规格
+            </p>
+            <table class="data-table reveal" style="max-width:min(90vw,780px);">
+                <thead>
+                    <tr>
+                        <th>系统</th>
+                        <th>产品类型</th>
+                        <th>主要规格</th>
+                        <th>定位</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="tag tag-crimson">GSS1 + GSS2</span></td>
+                        <td>Shampoo</td>
+                        <td>4.4 及以上</td>
+                        <td>主力系统，白名单可做 2.2 half batch</td>
+                    </tr>
+                    <tr>
+                        <td><span class="tag tag-crimson">GSS3</span></td>
+                        <td>Shampoo</td>
+                        <td>2.2</td>
+                        <td>小批主力承接系统</td>
+                    </tr>
+                    <tr>
+                        <td><span class="tag tag-crimson">GSS4</span></td>
+                        <td>Conditioner</td>
+                        <td>1.1 / 2.2 / 4.4 + 组合</td>
+                        <td>护发素专用系统</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="reveal" style="margin-top:clamp(0.5rem,1.5vh,1rem);">
+                <div class="pull-quote" style="font-size:var(--body-size);">
+                    GSS1+GSS2 做 2.2 小批需在 <span style="color:var(--crimson);font-style:normal;font-weight:600;">12t_to_6t_conversion_list.xlsx</span> 中注册 WIP Code
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 06: SHIFTS & TIME WINDOWS
+         ============================================================ -->
+    <section class="slide" id="slide-5">
+        <div class="slide-content">
+            <div class="section-label reveal"><span class="num">05</span> · Shift & Window</div>
+            <h2 class="slide-heading reveal">班次划分 &<em> 搭批窗口</em></h2>
+            <div class="divider reveal-divider"></div>
+            <div class="two-col">
+                <div class="reveal-left">
+                    <h3 style="font-family:'Cormorant Garamond',serif;font-size:var(--h3-size);font-weight:700;margin-bottom:clamp(0.4rem,1vh,0.8rem);">三班制</h3>
+                    <div style="display:flex;flex-direction:column;gap:clamp(0.3rem,0.6vh,0.5rem);">
+                        <div class="ink-card" style="display:flex;align-items:center;gap:clamp(0.5rem,1vw,0.8rem);">
+                            <span class="stat-num" style="font-size:clamp(1.5rem,2.5vw,2rem);min-width:1.5em;text-align:center;">N</span>
+                            <div>
+                                <div style="font-size:var(--body-size);font-weight:600;color:var(--charcoal);">Night 夜班</div>
+                                <div style="font-size:var(--small-size);color:var(--muted);">00:00 – 07:59</div>
+                            </div>
+                        </div>
+                        <div class="ink-card" style="display:flex;align-items:center;gap:clamp(0.5rem,1vw,0.8rem);">
+                            <span class="stat-num" style="font-size:clamp(1.5rem,2.5vw,2rem);min-width:1.5em;text-align:center;">D</span>
+                            <div>
+                                <div style="font-size:var(--body-size);font-weight:600;color:var(--charcoal);">Day 白班</div>
+                                <div style="font-size:var(--small-size);color:var(--muted);">08:00 – 15:59</div>
+                            </div>
+                        </div>
+                        <div class="ink-card" style="display:flex;align-items:center;gap:clamp(0.5rem,1vw,0.8rem);">
+                            <span class="stat-num" style="font-size:clamp(1.5rem,2.5vw,2rem);min-width:1.5em;text-align:center;">M</span>
+                            <div>
+                                <div style="font-size:var(--body-size);font-weight:600;color:var(--charcoal);">Mid 中班</div>
+                                <div style="font-size:var(--small-size);color:var(--muted);">16:00 – 23:59</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="reveal-right">
+                    <h3 style="font-family:'Cormorant Garamond',serif;font-size:var(--h3-size);font-weight:700;margin-bottom:clamp(0.4rem,1vh,0.8rem);">搭批窗口</h3>
+                    <div class="crimson-card" style="margin-bottom:clamp(0.3rem,0.6vh,0.5rem);">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <span style="font-size:var(--body-size);">Shampoo</span>
+                            <span class="stat-num" style="font-size:clamp(1.8rem,3vw,2.5rem);color:#fff;">16h</span>
+                        </div>
+                    </div>
+                    <div class="tint-card" style="margin-bottom:clamp(0.3rem,0.6vh,0.5rem);">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <span style="font-size:var(--body-size);color:var(--charcoal);">Conditioner</span>
+                            <span class="stat-num" style="font-size:clamp(1.8rem,3vw,2.5rem);">24h</span>
+                        </div>
+                    </div>
+                    <p style="font-size:var(--small-size);color:var(--muted);margin-top:clamp(0.3rem,0.6vh,0.5rem);">
+                        HPHFPACK 产线强制 24h 窗口<br>
+                        逻辑：先同日 → 再跨日搭批
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 07: MOQ TARGETS
+         ============================================================ -->
+    <section class="slide" id="slide-6">
+        <div class="geo-deco" style="top:clamp(3rem,7vh,5rem);right:clamp(3rem,6vw,6rem);display:flex;flex-direction:column;align-items:center;gap:6px;">
+            <div class="geo-circle" style="width:clamp(50px,8vw,90px);height:clamp(50px,8vw,90px);"></div>
+        </div>
+        <div class="slide-content">
+            <div class="section-label reveal"><span class="num">06</span> · MOQ</div>
+            <h2 class="slide-heading reveal">目标规格 <em>(MSU)</em></h2>
+            <div class="divider reveal-divider"></div>
+            <p class="slide-sub reveal" style="margin-bottom:clamp(0.6rem,1.5vh,1rem);">
+                以 2.2 MSU 为基础的多倍数目标序列
+            </p>
+            <div class="reveal" style="display:flex;gap:clamp(0.5rem,1.2vw,1rem);flex-wrap:wrap;align-items:flex-end;margin-bottom:clamp(0.8rem,2vh,1.5rem);">
+                <div style="text-align:center;">
+                    <div class="stat-num" style="font-size:clamp(1rem,1.8vw,1.4rem);color:var(--muted);">1.1</div>
+                    <div class="stat-label">Cond only</div>
+                </div>
+                <span style="color:var(--muted-light);font-size:var(--small-size);">→</span>
+                <div style="text-align:center;">
+                    <div class="stat-num" style="font-size:clamp(1.3rem,2.5vw,2rem);">2.2</div>
+                    <div class="stat-label">1× MOQ</div>
+                </div>
+                <span style="color:var(--muted-light);font-size:var(--small-size);">→</span>
+                <div style="text-align:center;">
+                    <div class="stat-num" style="font-size:clamp(1.8rem,3.5vw,2.8rem);">4.4</div>
+                    <div class="stat-label">2× MOQ</div>
+                </div>
+                <span style="color:var(--muted-light);font-size:var(--small-size);">→</span>
+                <div style="text-align:center;">
+                    <div class="stat-num" style="font-size:clamp(1.3rem,2.5vw,2rem);">6.6</div>
+                    <div class="stat-label">3×</div>
+                </div>
+                <span style="color:var(--muted-light);font-size:var(--small-size);">→</span>
+                <div style="text-align:center;">
+                    <div class="stat-num" style="font-size:clamp(1.3rem,2.5vw,2rem);">8.8</div>
+                    <div class="stat-label">4×</div>
+                </div>
+                <span style="color:var(--muted-light);font-size:var(--small-size);">→</span>
+                <div style="text-align:center;">
+                    <div class="stat-num" style="font-size:clamp(1.3rem,2.5vw,2rem);">11.0</div>
+                    <div class="stat-label">5×</div>
+                </div>
+                <span style="color:var(--muted-light);font-size:var(--small-size);">→</span>
+                <div style="text-align:center;">
+                    <div class="stat-num" style="font-size:clamp(1.3rem,2.5vw,2rem);">13.2</div>
+                    <div class="stat-label">6×</div>
+                </div>
+            </div>
+            <div class="pull-quote reveal">
+                搭批目标从大到小降序尝试，优先合成 4.4 而非 2.2 — 减少小批拆分，提升系统利用率。
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 08: DUAL TOLERANCE MECHANISM
+         ============================================================ -->
+    <section class="slide" id="slide-7">
+        <div class="slide-content">
+            <div class="section-label reveal"><span class="num">07</span> · Tolerance</div>
+            <h2 class="slide-heading reveal">双层<em>容差</em>控制</h2>
+            <div class="divider reveal-divider"></div>
+            <p class="slide-sub reveal" style="margin-bottom:clamp(0.6rem,1.5vh,1rem);">
+                Preferred（优选）+ Hard（硬边界）分开管理
+            </p>
+            <div class="two-col">
+                <div class="reveal-left">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>MOQ</th><th>Preferred</th><th>Hard</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td style="font-weight:600;">1.1</td><td>± 0.05</td><td>± 0.20</td></tr>
+                            <tr><td style="font-weight:600;">2.2</td><td>± 0.08</td><td>± 0.30</td></tr>
+                            <tr><td style="font-weight:600;">4.4</td><td>± 0.12</td><td>± 0.30</td></tr>
+                        </tbody>
+                    </table>
+                    <p style="margin-top:clamp(0.4rem,1vh,0.8rem);font-size:var(--small-size);color:var(--muted);">
+                        多倍 MOQ 容差放大：<br>
+                        每 +1× 4.4 → Preferred +0.06, Hard +0.20
+                    </p>
+                </div>
+                <div class="reveal-right" style="display:flex;flex-direction:column;gap:clamp(0.3rem,0.6vh,0.5rem);">
+                    <div class="ink-card">
+                        <h4 style="color:var(--charcoal);">IN_PREFERRED <span style="color:var(--crimson);">✓</span></h4>
+                        <p>命中优选区间 — 最理想状态</p>
+                    </div>
+                    <div class="tint-card">
+                        <h4>IN_HARD_ONLY <span style="color:var(--crimson);">⚠</span></h4>
+                        <p>未入优选区，但在硬边界内 — 可接受</p>
+                    </div>
+                    <div class="neutral-card">
+                        <h4 style="color:var(--crimson);">OUTSIDE_HARD ✗</h4>
+                        <p>超出硬边界 — 不允许</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 09: TOLERANCE EXAMPLES
+         ============================================================ -->
+    <section class="slide" id="slide-8">
+        <div class="slide-content">
+            <div class="section-label reveal"><span class="num">07</span> · Example</div>
+            <h2 class="slide-heading reveal">容差<em>实例</em></h2>
+            <div class="divider reveal-divider"></div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:clamp(0.5rem,1.2vw,1rem);">
+                <!-- Case A -->
+                <div class="ink-card reveal">
+                    <h4>案例 A · 标准命中</h4>
+                    <div class="formula-block" style="margin:clamp(0.3rem,0.5vh,0.4rem) 0;">
+                        Load = 2.183 → Target 2.2
+                    </div>
+                    <p>Preferred = [2.120, 2.280]</p>
+                    <p style="margin-top:0.2rem;">
+                        2.120 ≤ <strong style="color:var(--crimson);">2.183</strong> ≤ 2.280
+                    </p>
+                    <p style="margin-top:0.3rem;"><span class="tag tag-crimson">IN_PREFERRED ✓</span></p>
+                </div>
+                <!-- Case B -->
+                <div class="tint-card reveal">
+                    <h4>案例 B · 硬边界内</h4>
+                    <div class="formula-block" style="margin:clamp(0.3rem,0.5vh,0.4rem) 0;background:rgba(196,30,58,0.06);">
+                        Load = 2.060 → Target 2.2
+                    </div>
+                    <p style="color:var(--charcoal-soft);">
+                        Preferred 不满足 · Hard = [1.90, 2.50]
+                    </p>
+                    <p style="margin-top:0.2rem;color:var(--charcoal-soft);">
+                        1.90 ≤ <strong style="color:var(--crimson);">2.060</strong> ≤ 2.50
+                    </p>
+                    <p style="margin-top:0.3rem;"><span class="tag tag-crimson">IN_HARD_ONLY ⚠</span></p>
+                </div>
+                <!-- Case C -->
+                <div class="neutral-card reveal">
+                    <h4>案例 C · 不足 MOQ</h4>
+                    <div class="formula-block" style="margin:clamp(0.3rem,0.5vh,0.4rem) 0;background:var(--cream);">
+                        Load = 3.821 → Target 4.4
+                    </div>
+                    <p>比例：3.821 / 4.4 = <strong style="color:var(--crimson);">86.8%</strong></p>
+                    <p style="margin-top:0.2rem;">低于 90% 阈值 → 保留开批 + 备注提醒</p>
+                    <p style="margin-top:0.3rem;"><span class="tag" style="border-color:var(--crimson);color:var(--crimson);">UNDER_FILL ⚠</span></p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 10: BATCH FORMATION ALGORITHM
+         ============================================================ -->
+    <section class="slide" id="slide-9">
+        <div class="slide-content">
+            <div class="section-label reveal"><span class="num">08</span> · Algorithm</div>
+            <h2 class="slide-heading reveal">搭批算法<em>流程</em></h2>
+            <div class="divider reveal-divider"></div>
+            <div class="two-col">
+                <div class="reveal-left">
+                    <div style="display:flex;flex-direction:column;gap:clamp(0.25rem,0.5vh,0.4rem);">
+                        <div class="flow-item active" style="display:flex;align-items:center;gap:0.4rem;width:fit-content;">
+                            <span style="font-family:'Cormorant Garamond';font-weight:700;color:var(--crimson);">1</span>
+                            按 WIP Code 分组
+                        </div>
+                        <div class="flow-item" style="display:flex;align-items:center;gap:0.4rem;width:fit-content;">
+                            <span style="font-family:'Cormorant Garamond';font-weight:700;color:var(--crimson);">2</span>
+                            小单优先组合 (MSU ≤ 3.0)
+                        </div>
+                        <div class="flow-item active" style="display:flex;align-items:center;gap:0.4rem;width:fit-content;">
+                            <span style="font-family:'Cormorant Garamond';font-weight:700;color:var(--crimson);">3</span>
+                            目标从大到小降序尝试
+                        </div>
+                        <div class="flow-item" style="display:flex;align-items:center;gap:0.4rem;width:fit-content;">
+                            <span style="font-family:'Cormorant Garamond';font-weight:700;color:var(--crimson);">4</span>
+                            先同日 → 再跨日
+                        </div>
+                        <div class="flow-item active" style="display:flex;align-items:center;gap:0.4rem;width:fit-content;">
+                            <span style="font-family:'Cormorant Garamond';font-weight:700;color:var(--crimson);">5</span>
+                            规则合法才进入系统比较
+                        </div>
+                    </div>
+                </div>
+                <div class="reveal-right">
+                    <div class="crimson-card">
+                        <h4>小单组合策略</h4>
+                        <p style="font-size:var(--small-size);margin-top:0.3rem;">
+                            <code style="background:rgba(255,255,255,0.15);padding:1px 5px;border-radius:2px;">_build_combo_for_target</code><br>
+                            贪心策略：逐步添加候选订单，直到总量落入硬容差范围
+                        </p>
+                        <div style="font-size:var(--small-size);opacity:0.9;margin-top:0.5rem;line-height:1.6;">
+                            · 2 单 → 凑 4.4 或 2.2<br>
+                            · 3 单 → 凑 4.4<br>
+                            · 单单直接成批（如 2.18 → 2.2）
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 11: MULTI-ORDER COMBO EXAMPLE
+         ============================================================ -->
+    <section class="slide" id="slide-10">
+        <div class="geo-deco" style="top:clamp(2rem,5vh,4rem);right:clamp(2rem,5vw,5rem);">
+            <div class="geo-circle" style="width:clamp(60px,9vw,100px);height:clamp(60px,9vw,100px);"></div>
+        </div>
+        <div class="slide-content">
+            <div class="section-label reveal"><span class="num">08</span> · Example</div>
+            <h2 class="slide-heading reveal">多单搭批<em>实例</em></h2>
+            <div class="divider reveal-divider"></div>
+            <p class="slide-sub reveal" style="margin-bottom:clamp(0.6rem,1.5vh,1rem);">
+                3 个 Conditioner 订单合并为 1×4.4 批次（而非 2×2.2）
+            </p>
+            <table class="data-table reveal" style="max-width:min(90vw,700px);">
+                <thead>
+                    <tr><th>订单</th><th>WIP</th><th>MSU</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Order A</td>
+                        <td style="font-family:monospace;font-size:var(--small-size);">21268746</td>
+                        <td><strong style="color:var(--crimson);">1.18</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Order B</td>
+                        <td style="font-family:monospace;font-size:var(--small-size);">21268746</td>
+                        <td><strong style="color:var(--crimson);">1.10</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Order C</td>
+                        <td style="font-family:monospace;font-size:var(--small-size);">21268746</td>
+                        <td><strong style="color:var(--crimson);">2.15</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem);display:flex;gap:clamp(1rem,3vw,2.5rem);align-items:center;flex-wrap:wrap;">
+                <div class="formula-block" style="flex:1;min-width:200px;">
+                    1.18 + 1.10 + 2.15 = <span style="font-size:clamp(1.1rem,2vw,1.5rem);font-weight:700;">4.43</span>
+                </div>
+                <div style="text-align:center;">
+                    <div class="stat-label" style="margin-bottom:0.2rem;">Target</div>
+                    <div class="stat-num" style="font-size:clamp(2rem,4vw,3rem);">4.4</div>
+                    <span class="tag tag-crimson" style="margin-top:0.3rem;">IN_PREFERRED ✓</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 12: SYSTEM SCORING (6-TUPLE)
+         ============================================================ -->
+    <section class="slide" id="slide-11">
+        <div class="slide-content">
+            <div class="section-label reveal"><span class="num">09</span> · Scoring</div>
+            <h2 class="slide-heading reveal">系统评分 <em>6-Tuple</em></h2>
+            <div class="divider reveal-divider"></div>
+            <p class="slide-sub reveal" style="margin-bottom:clamp(0.5rem,1.2vh,0.8rem);">
+                候选系统从左到右逐项比较 — 取最小值
+            </p>
+            <div class="formula-block reveal" style="max-width:min(90vw,720px);margin-bottom:clamp(0.6rem,1.5vh,1rem);font-size:var(--body-size);">
+                Score = (<span style="color:var(--crimson);">overflow</span>, gss12_small, priority, usage, closest, name)
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:clamp(0.3rem,0.8vw,0.6rem);">
+                <div class="ink-card reveal"><h4>overflow</h4><p>是否超班次上限</p></div>
+                <div class="ink-card reveal"><h4>gss12_small</h4><p>GSS1+2 做小批惩罚</p></div>
+                <div class="ink-card reveal"><h4>priority</h4><p>系统优先级序</p></div>
+                <div class="ink-card reveal"><h4>usage</h4><p>当前班次已占用数</p></div>
+                <div class="ink-card reveal"><h4>closest</h4><p>系统能力与目标接近度</p></div>
+                <div class="ink-card reveal"><h4>name</h4><p>稳定排序兜底字段</p></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 13: SCORING EXAMPLE
+         ============================================================ -->
+    <section class="slide" id="slide-12">
+        <div class="slide-content">
+            <div class="section-label reveal"><span class="num">09</span> · Example</div>
+            <h2 class="slide-heading reveal">评分对比<em>实例</em></h2>
+            <div class="divider reveal-divider"></div>
+            <p class="slide-sub reveal" style="margin-bottom:clamp(0.6rem,1.5vh,1rem);">
+                Shampoo 批次 Target = 2.2，两个系统均合法 — 谁胜出？
+            </p>
+            <div class="two-col reveal">
+                <div class="crimson-card">
+                    <h4>GSS1 + GSS2</h4>
+                    <div class="formula-block" style="margin-top:0.4rem;background:rgba(255,255,255,0.1);border:none;color:#fff;">
+                        (0, <strong>1</strong>, 0, 0, 2.2, "GSS12")
+                    </div>
+                    <p style="margin-top:0.4rem;font-size:var(--small-size);">
+                        gss12_small = <strong>1</strong> — 小批惩罚 ❌
+                    </p>
+                </div>
+                <div class="tint-card">
+                    <h4 style="color:var(--charcoal);">GSS3</h4>
+                    <div class="formula-block" style="margin-top:0.4rem;background:rgba(196,30,58,0.04);">
+                        (0, <strong>0</strong>, 1, 0, 0.0, "GSS3")
+                    </div>
+                    <p style="margin-top:0.4rem;font-size:var(--small-size);color:var(--charcoal-soft);">
+                        gss12_small = <strong>0</strong> — 无惩罚 ✓
+                    </p>
+                </div>
+            </div>
+            <div class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem);">
+                <div class="pull-quote">
+                    第 2 位 gss12_small：GSS3 (0) < GSS12 (1)&ensp;→&ensp;<strong style="font-style:normal;color:var(--crimson);">GSS3 胜出</strong>，2.2 小批由小批专用系统承接
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 14: SECOND PASS MERGE & REBALANCE
+         ============================================================ -->
+    <section class="slide" id="slide-13">
+        <div class="slide-content">
+            <div class="section-label reveal"><span class="num">10</span> · Optimization</div>
+            <h2 class="slide-heading reveal">二次合并 &<em> 超限再平衡</em></h2>
+            <div class="divider reveal-divider"></div>
+            <div class="two-col">
+                <div class="reveal-left">
+                    <div class="crimson-card" style="margin-bottom:clamp(0.4rem,0.8vh,0.5rem);">
+                        <h4>Second Pass Merge</h4>
+                        <p style="font-size:var(--small-size);">首轮分配后，仍可升级为更大批次</p>
+                        <div style="font-size:var(--small-size);margin-top:0.4rem;opacity:0.9;line-height:1.6;">
+                            · 同系统 + 同 WIP + 同 Type<br>
+                            · 至少一侧欠装 (Load/Target &lt; 0.90)<br>
+                            · 合并后命中合法目标<br>
+                            · 不恶化超限
+                        </div>
+                    </div>
+                    <p style="font-size:var(--small-size);color:var(--muted);font-style:italic;">
+                        示例：3.538 + 13.821 → Target 17.6
+                    </p>
+                </div>
+                <div class="reveal-right">
+                    <div class="tint-card" style="margin-bottom:clamp(0.4rem,0.8vh,0.5rem);">
+                        <h4>Overflow Rebalance</h4>
+                        <p style="font-size:var(--small-size);color:var(--charcoal-soft);">某系统超限时借用其他系统产能</p>
+                        <div style="font-size:var(--small-size);margin-top:0.4rem;color:var(--charcoal-soft);line-height:1.6;">
+                            · GSS3 超限 → 借 GSS1+GSS2<br>
+                            · 确保班次统计口径一致<br>
+                            · 重建产能占用记录
+                        </div>
+                    </div>
+                    <p style="font-size:var(--small-size);color:var(--muted);font-style:italic;">
+                        顺序：搭批 → 合并 → 再平衡 → 报表
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 15: OUTPUT REPORTS
+         ============================================================ -->
+    <section class="slide" id="slide-14">
+        <div class="slide-content">
+            <div class="section-label reveal"><span class="num">11</span> · Output</div>
+            <h2 class="slide-heading reveal">四张报表 +<em> 可解释列</em></h2>
+            <div class="divider reveal-divider"></div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:clamp(0.4rem,1vw,0.8rem);margin-bottom:clamp(0.6rem,1.5vh,1rem);">
+                <div class="crimson-card reveal">
+                    <h4>Orders</h4>
+                    <p>每条订单的分配系统、批次号、备注与告警</p>
+                </div>
+                <div class="tint-card reveal">
+                    <h4>Batches</h4>
+                    <p style="color:var(--charcoal-soft);">真实物理批次，按系统 × 日期 × 班次</p>
+                </div>
+                <div class="ink-card reveal">
+                    <h4>Summary</h4>
+                    <p>By System×Day、By Day×Line、By Seg×Day</p>
+                </div>
+                <div class="neutral-card reveal">
+                    <h4>Alerts</h4>
+                    <p>超限告警，去重 + 带具体日期</p>
+                </div>
+            </div>
+            <div class="ink-card reveal">
+                <h4>Decision Explain 列示例</h4>
+                <div class="formula-block" style="margin-top:0.4rem;text-align:left;line-height:1.7;font-size:clamp(0.58rem,0.85vw,0.72rem);">
+                    Target=2.2 | Load=2.183 | Pref=[2.12,2.28] | Hard=[1.90,2.50]<br>
+                    Status=IN_PREFERRED | System=GSS3 | Score=(0,0,1,0,0.0,"GSS3")
+                </div>
+                <p style="margin-top:0.3rem;">每张订单都有审计追踪 — 为什么选这个系统、为什么这个目标</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 16: SUMMARY
+         ============================================================ -->
+    <section class="slide" id="slide-15">
+        <div class="geo-deco" style="top:clamp(3rem,8vh,6rem);right:clamp(4rem,10vw,10rem);">
+            <div class="geo-circle"></div>
+        </div>
+        <div class="geo-deco" style="bottom:clamp(4rem,10vh,8rem);left:clamp(3rem,6vw,6rem);display:flex;flex-direction:column;align-items:center;gap:6px;">
+            <div class="geo-line"></div>
+            <div class="geo-dot"></div>
+        </div>
+        <div class="slide-content" style="align-items:center;text-align:center;">
+            <div class="section-label reveal" style="letter-spacing:0.25em;">SUMMARY</div>
+            <h2 class="reveal" style="font-family:'Cormorant Garamond',serif;font-size:clamp(1.6rem,4.5vw,3.2rem);font-weight:700;line-height:1.15;margin-bottom:clamp(0.3rem,1vh,0.6rem);max-width:28ch;">
+                规则驱动 + 启发式优化的<br><em style="font-style:italic;color:var(--crimson);font-weight:600;">生产批次决策引擎</em>
+            </h2>
+            <div class="divider reveal-divider" style="margin-left:auto;margin-right:auto;"></div>
+            <div class="reveal" style="display:flex;flex-wrap:wrap;gap:clamp(0.3rem,0.6vw,0.5rem);justify-content:center;margin:clamp(0.5rem,1.5vh,1rem) 0;">
+                <span class="tag tag-crimson">Rule-based Scheduling</span>
+                <span class="tag tag-crimson">Heuristic Batch Formation</span>
+                <span class="tag tag-crimson">Dual-Tolerance Control</span>
+                <span class="tag tag-crimson">Multi-Criteria Scoring</span>
+                <span class="tag tag-crimson">Explainable Output</span>
+            </div>
+            <div class="reveal" style="display:flex;gap:clamp(1.5rem,4vw,3.5rem);justify-content:center;margin:clamp(0.8rem,2vh,1.5rem) 0;">
+                <div>
+                    <div class="stat-num" style="font-size:clamp(2.2rem,5vw,3.8rem);">4</div>
+                    <div class="stat-label">数据源</div>
+                </div>
+                <div>
+                    <div class="stat-num" style="font-size:clamp(2.2rem,5vw,3.8rem);">4</div>
+                    <div class="stat-label">搅拌系统</div>
+                </div>
+                <div>
+                    <div class="stat-num" style="font-size:clamp(2.2rem,5vw,3.8rem);">10</div>
+                    <div class="stat-label">步流水线</div>
+                </div>
+            </div>
+            <p class="reveal drop-cap" style="font-size:var(--body-size);color:var(--muted);max-width:48ch;text-align:left;margin:0 auto;">
+                具备多源数据整合、双层容差控制、局部评分排序、日期班次产能校验与可解释性决策输出能力。
+            </p>
+        </div>
+    </section>
+
+    <!-- =========================================
+         JAVASCRIPT: Navigation & Animations
+         ========================================= -->
+    <script>
+        /* === INTERSECTION OBSERVER FOR ANIMATIONS === */
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.15 });
+
+        document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-divider').forEach(el => {
+            observer.observe(el);
+        });
+
+        /* === NAV DOTS SYNC === */
+        const slides = document.querySelectorAll('.slide');
+        const dots = document.querySelectorAll('.dot');
+        const counterEl = document.getElementById('current-slide');
+
+        const slideObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const idx = Array.from(slides).indexOf(entry.target);
+                    dots.forEach(d => d.classList.remove('active'));
+                    if (dots[idx]) dots[idx].classList.add('active');
+                    if (counterEl) counterEl.textContent = idx + 1;
+                }
+            });
+        }, { threshold: 0.5 });
+
+        slides.forEach(s => slideObserver.observe(s));
+
+        dots.forEach(dot => {
+            dot.addEventListener('click', () => {
+                const idx = parseInt(dot.dataset.slide);
+                slides[idx]?.scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+
+        /* === KEYBOARD NAVIGATION === */
+        document.addEventListener('keydown', (e) => {
+            const current = Array.from(slides).findIndex(s => {
+                const rect = s.getBoundingClientRect();
+                return rect.top >= -100 && rect.top <= window.innerHeight / 2;
+            });
+
+            if (['ArrowDown', 'ArrowRight', 'Space', 'PageDown'].includes(e.code)) {
+                e.preventDefault();
+                const next = Math.min(current + 1, slides.length - 1);
+                slides[next]?.scrollIntoView({ behavior: 'smooth' });
+            }
+
+            if (['ArrowUp', 'ArrowLeft', 'PageUp'].includes(e.code)) {
+                e.preventDefault();
+                const prev = Math.max(current - 1, 0);
+                slides[prev]?.scrollIntoView({ behavior: 'smooth' });
+            }
+
+            if (e.code === 'Home') {
+                e.preventDefault();
+                slides[0]?.scrollIntoView({ behavior: 'smooth' });
+            }
+
+            if (e.code === 'End') {
+                e.preventDefault();
+                slides[slides.length - 1]?.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    </script>
+</body>
+</html>

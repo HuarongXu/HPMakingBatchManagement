@@ -34,7 +34,7 @@ ENABLE_SECOND_PASS_MERGE = True
 SECOND_PASS_MAX_MULTIPLIER = 12
 
 MOQ_TOLERANCE_RULES = {
-    4.4: {'preferred': 0.12, 'hard': 0.30},
+    4.4: {'preferred': 0.12, 'hard': 0.50},
     2.2: {'preferred': 0.08, 'hard': 0.30},
     1.1: {'preferred': 0.05, 'hard': 0.20},
 }
@@ -63,6 +63,21 @@ def _system_allows_target_for_orders(system: MakingSystem, target_size: float, o
     if target_size >= GSS12_MIN_MOQ - tol:
         return True
     return all(order.allow_gss12_reduced_moq for order in orders)
+
+
+def _all_systems_need_multi_batch(order: ProductionOrder, target_size: float, systems: List[MakingSystem]) -> bool:
+    """判断所有可用系统是否都需要多个物理批次来完成该目标。
+    如果是，说明该目标不是一个单次生产的 MOQ，应拆分为更小的逻辑段。"""
+    category = (order.product_category or '').lower()
+    for system in systems:
+        if category and category not in system.product_suitability:
+            continue
+        if not _system_supports_target(system, target_size):
+            continue
+        if _calculate_physical_batches(system, target_size) <= 1:
+            return False  # 至少一个系统可以单次完成
+    return True  # 所有系统都需要多次
+
 
 def _calculate_shift(start_time: time) -> str:
     """根据开始时间计算班次 (N/D/M)"""
@@ -433,6 +448,9 @@ def _split_single_order(order: ProductionOrder, systems: List[MakingSystem]) -> 
             preferred_chunks = _preferred_shampoo_chunks(order, demand, allowed_sizes, systems)
             if preferred_chunks:
                 chunks = preferred_chunks
+            elif _all_systems_need_multi_batch(order, single_target, systems):
+                # 目标需要多个物理批次（如 conditioner 6.6 = 3×2.2），应拆分成更小的逻辑段
+                chunks = _decompose_msu_into_chunks(demand, allowed_sizes)
             elif _any_system_supports_order_target(order, single_target, systems):
                 order.segment_index = 1
                 order.segment_total = 1
@@ -1029,8 +1047,6 @@ def _second_pass_merge_batches(
                 right_category = (right.orders[0].product_category or '').lower()
                 if left_category != right_category:
                     continue
-                if not (_is_underfill_single_batch(left) or _is_underfill_single_batch(right)):
-                    continue
 
                 merged_orders = sorted(left.orders + right.orders, key=lambda order: order.start_datetime)
                 if not _combination_respects_work_center(merged_orders):
@@ -1048,6 +1064,13 @@ def _second_pass_merge_batches(
                     continue
 
                 merged_physical = _calculate_physical_batches(left.assigned_system, target_size)
+                # 只有满足以下条件之一才值得合并：
+                # 1) 至少一方存在 underfill（原有逻辑）
+                # 2) 合并后可减少物理批次数（如两个 1.1 → 一个 2.2）
+                reduces_batches = merged_physical < (left.physical_batches + right.physical_batches)
+                has_underfill = _is_underfill_single_batch(left) or _is_underfill_single_batch(right)
+                if not (reduces_batches or has_underfill):
+                    continue
                 merged_batch = Batch(
                     batch_id=left.batch_id,
                     wip_code=left.wip_code,
@@ -1109,14 +1132,34 @@ def _get_allowed_msu_sizes(category: Optional[str]) -> List[float]:
 
     max_multiplier = 6
     if cat == 'conditioner':
-        for mult in range(max_multiplier, 0, -1):
-            _add_multiple(2.2, mult)
-        sizes.add(1.1)
+        # Conditioner 系统支持 2.2 和 1.1 两种规格，
+        # 允许的目标批量应包含所有 1.1 的倍数（如 3.3=2.2+1.1, 5.5=4.4+1.1 等）
+        max_units = int(round(2.2 * max_multiplier / 1.1))  # 12
+        for mult in range(max_units, 0, -1):
+            _add_multiple(1.1, mult)
     else:
         for mult in range(max_multiplier, 0, -1):
             _add_multiple(2.2, mult)
 
     return sorted(sizes, reverse=True)
+
+
+def _is_sibling_segment(a: ProductionOrder, b: ProductionOrder) -> bool:
+    """判断两个订单是否来自同一原始订单的拆分段，拆分段不应被重新搭批到同一批次。"""
+    if a.segment_total <= 1 or b.segment_total <= 1:
+        return False
+    orig_a = a.original_order_number or a.order_number
+    orig_b = b.original_order_number or b.order_number
+    return orig_a == orig_b
+
+
+def _order_fits_standard_moq(order: ProductionOrder) -> bool:
+    """判断订单的MSU需求是否已匹配标准MOQ（无需搭批即可独立成批）。"""
+    demand = order.msu_demand or 0
+    if demand <= 0:
+        return False
+    allowed = _get_allowed_msu_sizes(order.product_category)
+    return _match_single_chunk(demand, allowed) is not None
 
 
 def _build_combo_for_target(primary: ProductionOrder, pool: List[ProductionOrder], target_size: float):
@@ -1131,7 +1174,10 @@ def _build_combo_for_target(primary: ProductionOrder, pool: List[ProductionOrder
     if load >= target_size - hard_tolerance:
         return combo if _combination_respects_work_center(combo) else None
 
-    candidates = [order for order in pool if order.product_category == primary.product_category and order.msu_demand and order.msu_demand > 0]
+    candidates = [order for order in pool
+                  if order.product_category == primary.product_category
+                  and order.msu_demand and order.msu_demand > 0
+                  and not _is_sibling_segment(primary, order)]
     candidates.sort(key=lambda o: o.msu_demand, reverse=True)
 
     for order in candidates:
@@ -1196,6 +1242,7 @@ def _plan_batches_for_group(
                 if o.order_number not in used_order_numbers
                 and o is not primary
                 and _within_batch_window(primary, o, allow_cross_day)
+                and not _is_sibling_segment(primary, o)
             ]
             combo = _build_combo_for_target(primary, pool, target_size)
             if combo and len(combo) > 1:
@@ -1211,9 +1258,22 @@ def _plan_batches_for_group(
     while remaining:
         primary = remaining.pop(0)
         allowed_sizes = _get_allowed_msu_sizes(primary.product_category)
+
+        # ---- 快速路径：订单已匹配标准 MOQ，直接计划，无需搭批 ----
+        primary_demand = primary.msu_demand or 0
+        single_moq = _match_single_chunk(primary_demand, allowed_sizes)
+        if single_moq is not None:
+            planned.append({'orders': [primary], 'target_size': single_moq})
+            continue
+
         plan_orders = None
         plan_target = None
-        window_pool = [order for order in remaining if _within_batch_window(primary, order, allow_cross_day)]
+        # 排除已匹配 MOQ 的订单，它们应独立成批而非被拉入搭批
+        window_pool = [
+            order for order in remaining
+            if _within_batch_window(primary, order, allow_cross_day)
+            and not _order_fits_standard_moq(order)
+        ]
 
         # 优先尝试大目标搭批（降序），再回退到小目标
         for target in allowed_sizes:
@@ -1274,6 +1334,8 @@ def _augment_single_order_plan(
     candidates = sorted(window_pool, key=lambda o: o.msu_demand or 0, reverse=True)
     for candidate in candidates:
         if candidate is primary or candidate in extras:
+            continue
+        if _is_sibling_segment(primary, candidate):
             continue
         if candidate.product_category != primary.product_category:
             continue

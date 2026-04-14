@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HP Making Batch Management Tool — Introduction</title>
+
+    <!-- === FONTS === -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* =========================================
+           VIEWPORT FITTING: MANDATORY BASE STYLES
+           ========================================= */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body { height: 100%; overflow-x: hidden; }
+        html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+
+        .slide {
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            scroll-snap-align: start;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .slide-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            max-height: 100%;
+            overflow: hidden;
+            padding: var(--slide-padding);
+        }
+
+        :root {
+            --title-size: clamp(1.5rem, 5vw, 4rem);
+            --h2-size: clamp(1.25rem, 3.5vw, 2.5rem);
+            --h3-size: clamp(1rem, 2.5vw, 1.75rem);
+            --body-size: clamp(0.75rem, 1.5vw, 1.125rem);
+            --small-size: clamp(0.65rem, 1vw, 0.875rem);
+            --slide-padding: clamp(1rem, 4vw, 4rem);
+            --content-gap: clamp(0.5rem, 2vw, 2rem);
+            --element-gap: clamp(0.25rem, 1vw, 1rem);
+        }
+
+        .card, .container, .content-box {
+            max-width: min(90vw, 1000px);
+            max-height: min(80vh, 700px);
+        }
+
+        .feature-list, .bullet-list { gap: clamp(0.4rem, 1vh, 1rem); }
+        .feature-list li, .bullet-list li { font-size: var(--body-size); line-height: 1.4; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+            gap: clamp(0.5rem, 1.5vw, 1rem);
+        }
+
+        img, .image-container {
+            max-width: 100%;
+            max-height: min(50vh, 400px);
+            object-fit: contain;
+        }
+
+        @media (max-height: 700px) {
+            :root {
+                --slide-padding: clamp(0.75rem, 3vw, 2rem);
+                --content-gap: clamp(0.4rem, 1.5vw, 1rem);
+                --title-size: clamp(1.25rem, 4.5vw, 2.5rem);
+                --h2-size: clamp(1rem, 3vw, 1.75rem);
+            }
+        }
+
+        @media (max-height: 600px) {
+            :root {
+                --slide-padding: clamp(0.5rem, 2.5vw, 1.5rem);
+                --content-gap: clamp(0.3rem, 1vw, 0.75rem);
+                --title-size: clamp(1.1rem, 4vw, 2rem);
+                --body-size: clamp(0.7rem, 1.2vw, 0.95rem);
+            }
+            .nav-dots, .keyboard-hint, .decorative { display: none; }
+        }
+
+        @media (max-height: 500px) {
+            :root {
+                --slide-padding: clamp(0.4rem, 2vw, 1rem);
+                --title-size: clamp(1rem, 3.5vw, 1.5rem);
+                --h2-size: clamp(0.9rem, 2.5vw, 1.25rem);
+                --body-size: clamp(0.65rem, 1vw, 0.85rem);
+            }
+        }
+
+        @media (max-width: 600px) {
+            :root { --title-size: clamp(1.25rem, 7vw, 2.5rem); }
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.2s !important;
+            }
+            html { scroll-behavior: auto; }
+        }
+
+        /* =========================================
+           THEME: BOLD SIGNAL — Dark + Orange Accent
+           ========================================= */
+        :root {
+            --bg-primary: #0f0f12;
+            --bg-gradient: linear-gradient(160deg, #0f0f12 0%, #1a1a22 40%, #12121a 100%);
+            --card-accent: #FF6B35;
+            --card-accent-2: #00C9A7;
+            --card-accent-3: #845EF7;
+            --card-accent-4: #FFD93D;
+            --text-primary: #f0ece6;
+            --text-secondary: #8a8690;
+            --text-on-card: #0f0f12;
+            --border-subtle: rgba(255,255,255,0.06);
+            --code-bg: rgba(255,255,255,0.05);
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 400;
+            line-height: 1.5;
+        }
+
+        /* =========================================
+           NAVIGATION DOTS
+           ========================================= */
+        .nav-dots {
+            position: fixed;
+            right: clamp(12px, 2vw, 24px);
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 100;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            border: 1.5px solid rgba(255,255,255,0.25);
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            padding: 0;
+        }
+
+        .dot.active {
+            background: var(--card-accent);
+            border-color: var(--card-accent);
+            transform: scale(1.3);
+        }
+
+        .dot:hover {
+            border-color: rgba(255,255,255,0.6);
+        }
+
+        /* =========================================
+           SLIDE COMMON ELEMENTS
+           ========================================= */
+        .slide {
+            background: var(--bg-gradient);
+        }
+
+        .section-number {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: clamp(0.8rem, 1.2vw, 1rem);
+            color: var(--text-secondary);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: clamp(0.3rem, 1vh, 0.8rem);
+        }
+
+        .slide-title-text {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: var(--h2-size);
+            color: var(--text-primary);
+            line-height: 1.15;
+            margin-bottom: clamp(0.4rem, 1.5vh, 1.2rem);
+        }
+
+        .subtitle {
+            font-size: var(--body-size);
+            color: var(--text-secondary);
+            max-width: 55ch;
+            line-height: 1.6;
+        }
+
+        /* Accent card blocks */
+        .accent-card {
+            background: var(--card-accent);
+            color: var(--text-on-card);
+            border-radius: clamp(8px, 1vw, 16px);
+            padding: clamp(1rem, 2.5vw, 2.2rem);
+        }
+
+        .accent-card.green { background: var(--card-accent-2); }
+        .accent-card.purple { background: var(--card-accent-3); color: #fff; }
+        .accent-card.yellow { background: var(--card-accent-4); }
+
+        .accent-card h3 {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: var(--h3-size);
+            margin-bottom: clamp(0.3rem, 0.8vh, 0.6rem);
+        }
+
+        .accent-card p, .accent-card li {
+            font-size: var(--body-size);
+            line-height: 1.5;
+        }
+
+        /* Mini cards for grids */
+        .mini-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border-subtle);
+            border-radius: clamp(6px, 0.8vw, 12px);
+            padding: clamp(0.6rem, 1.5vw, 1.4rem);
+        }
+
+        .mini-card h4 {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: clamp(0.8rem, 1.2vw, 1rem);
+            margin-bottom: clamp(0.2rem, 0.5vh, 0.4rem);
+            color: var(--card-accent);
+        }
+
+        .mini-card p {
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            line-height: 1.45;
+        }
+
+        /* Code / formula blocks */
+        .formula-block {
+            background: var(--code-bg);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: clamp(0.5rem, 1.5vw, 1.2rem);
+            font-family: 'Space Grotesk', monospace;
+            font-size: var(--small-size);
+            color: var(--card-accent);
+            text-align: center;
+            letter-spacing: 0.02em;
+        }
+
+        /* Table styling */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: var(--small-size);
+        }
+
+        .data-table th {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: var(--small-size);
+            color: var(--card-accent);
+            text-align: left;
+            padding: clamp(0.3rem, 0.8vw, 0.6rem) clamp(0.4rem, 1vw, 0.8rem);
+            border-bottom: 2px solid rgba(255,107,53,0.3);
+            white-space: nowrap;
+        }
+
+        .data-table td {
+            padding: clamp(0.25rem, 0.6vw, 0.5rem) clamp(0.4rem, 1vw, 0.8rem);
+            border-bottom: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+        }
+
+        .data-table tr:hover td {
+            color: var(--text-primary);
+        }
+
+        /* Tag / badge */
+        .tag {
+            display: inline-block;
+            padding: 2px clamp(6px, 0.8vw, 10px);
+            border-radius: 4px;
+            font-size: clamp(0.6rem, 0.9vw, 0.75rem);
+            font-weight: 600;
+            letter-spacing: 0.03em;
+        }
+
+        .tag-orange { background: rgba(255,107,53,0.15); color: var(--card-accent); }
+        .tag-green { background: rgba(0,201,167,0.15); color: var(--card-accent-2); }
+        .tag-purple { background: rgba(132,94,247,0.15); color: var(--card-accent-3); }
+        .tag-yellow { background: rgba(255,217,61,0.15); color: #e6c000; }
+        .tag-red { background: rgba(255,71,87,0.15); color: #ff4757; }
+
+        /* Two-column layout */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(1rem, 2.5vw, 2.5rem);
+            align-items: start;
+        }
+
+        @media (max-width: 700px) {
+            .two-col { grid-template-columns: 1fr; }
+        }
+
+        /* Flow / pipeline */
+        .flow-steps {
+            display: flex;
+            flex-wrap: wrap;
+            gap: clamp(0.3rem, 0.8vw, 0.6rem);
+            align-items: center;
+        }
+
+        .flow-step {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border-subtle);
+            border-radius: 6px;
+            padding: clamp(0.3rem, 0.6vw, 0.5rem) clamp(0.5rem, 1vw, 0.9rem);
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .flow-step.active {
+            background: rgba(255,107,53,0.12);
+            border-color: rgba(255,107,53,0.4);
+            color: var(--card-accent);
+        }
+
+        .flow-arrow {
+            color: var(--text-secondary);
+            font-size: var(--small-size);
+            opacity: 0.4;
+        }
+
+        /* Highlight number */
+        .big-num {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: clamp(2rem, 5vw, 4rem);
+            line-height: 1;
+            color: var(--card-accent);
+        }
+
+        /* Decorative gradient circle */
+        .deco-circle {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.12;
+            pointer-events: none;
+        }
+
+        /* =========================================
+           ANIMATIONS
+           ========================================= */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-40px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(40px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.85); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .reveal.visible {
+            animation: fadeInUp 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        .reveal:nth-child(2) { animation-delay: 0.1s; }
+        .reveal:nth-child(3) { animation-delay: 0.18s; }
+        .reveal:nth-child(4) { animation-delay: 0.26s; }
+        .reveal:nth-child(5) { animation-delay: 0.34s; }
+        .reveal:nth-child(6) { animation-delay: 0.42s; }
+        .reveal:nth-child(7) { animation-delay: 0.50s; }
+        .reveal:nth-child(8) { animation-delay: 0.58s; }
+
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(-40px);
+        }
+        .reveal-left.visible {
+            animation: slideInLeft 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        .reveal-right {
+            opacity: 0;
+            transform: translateX(40px);
+        }
+        .reveal-right.visible {
+            animation: slideInRight 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        .reveal-scale {
+            opacity: 0;
+            transform: scale(0.85);
+        }
+        .reveal-scale.visible {
+            animation: scaleIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        /* =========================================
+           KEYBOARD HINT
+           ========================================= */
+        .keyboard-hint {
+            position: fixed;
+            bottom: clamp(10px, 2vh, 20px);
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            opacity: 0.35;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        /* Slide counter */
+        .slide-counter {
+            position: fixed;
+            bottom: clamp(10px, 2vh, 20px);
+            right: clamp(12px, 2vw, 24px);
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            opacity: 0.4;
+            z-index: 100;
+            font-family: 'Space Grotesk', monospace;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- === NAVIGATION DOTS === -->
+    <nav class="nav-dots" aria-label="Slide navigation">
+        <button class="dot active" data-slide="0" aria-label="Slide 1"></button>
+        <button class="dot" data-slide="1" aria-label="Slide 2"></button>
+        <button class="dot" data-slide="2" aria-label="Slide 3"></button>
+        <button class="dot" data-slide="3" aria-label="Slide 4"></button>
+        <button class="dot" data-slide="4" aria-label="Slide 5"></button>
+        <button class="dot" data-slide="5" aria-label="Slide 6"></button>
+        <button class="dot" data-slide="6" aria-label="Slide 7"></button>
+        <button class="dot" data-slide="7" aria-label="Slide 8"></button>
+        <button class="dot" data-slide="8" aria-label="Slide 9"></button>
+        <button class="dot" data-slide="9" aria-label="Slide 10"></button>
+        <button class="dot" data-slide="10" aria-label="Slide 11"></button>
+        <button class="dot" data-slide="11" aria-label="Slide 12"></button>
+        <button class="dot" data-slide="12" aria-label="Slide 13"></button>
+        <button class="dot" data-slide="13" aria-label="Slide 14"></button>
+        <button class="dot" data-slide="14" aria-label="Slide 15"></button>
+        <button class="dot" data-slide="15" aria-label="Slide 16"></button>
+    </nav>
+
+    <div class="keyboard-hint">↑ ↓ / ← → / Space to navigate</div>
+    <div class="slide-counter"><span id="current-slide">1</span> / 16</div>
+
+    <!-- ============================================================
+         SLIDE 01: TITLE
+         ============================================================ -->
+    <section class="slide" id="slide-0">
+        <div class="deco-circle" style="width:500px;height:500px;background:var(--card-accent);top:-150px;right:-100px;"></div>
+        <div class="deco-circle" style="width:350px;height:350px;background:var(--card-accent-3);bottom:-100px;left:-80px;"></div>
+        <div class="slide-content" style="justify-content:center;align-items:flex-start;">
+            <div class="reveal" style="margin-bottom:clamp(0.5rem,2vh,1.5rem);">
+                <span class="tag tag-orange">PRODUCTION PLANNING</span>
+            </div>
+            <h1 class="reveal" style="font-family:'Archivo Black',sans-serif;font-size:clamp(2rem,6vw,4.5rem);line-height:1.05;margin-bottom:clamp(0.5rem,2vh,1rem);">
+                HP Making Batch<br>Management Tool
+            </h1>
+            <p class="reveal subtitle" style="max-width:50ch;margin-bottom:clamp(1rem,3vh,2rem);">
+                面向 HP 洗护生产计划的批次智能管理与搅拌系统分配引擎<br>
+                <span style="opacity:0.5;">Rule-based Scheduling · Dual-Tolerance · Explainable Output</span>
+            </p>
+            <div class="reveal" style="display:flex;gap:clamp(0.5rem,1vw,1rem);flex-wrap:wrap;">
+                <span class="tag tag-green">Python</span>
+                <span class="tag tag-purple">pandas</span>
+                <span class="tag tag-yellow">openpyxl</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 02: CORE CHALLENGES
+         ============================================================ -->
+    <section class="slide" id="slide-1">
+        <div class="slide-content">
+            <div class="section-number reveal">01 — CHALLENGE</div>
+            <h2 class="slide-title-text reveal">解决什么问题？</h2>
+            <p class="subtitle reveal" style="margin-bottom:clamp(0.8rem,2vh,1.5rem);">
+                洗护生产计划面临的 5 个核心挑战
+            </p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:clamp(0.4rem,1vw,0.8rem);">
+                <div class="mini-card reveal">
+                    <h4>① 系统映射</h4>
+                    <p>不同产品 / 产线 / 班次 → 分配到哪个搅拌系统？</p>
+                </div>
+                <div class="mini-card reveal">
+                    <h4>② 批次成型</h4>
+                    <p>如何在 1.1 / 2.2 / 4.4 及多倍 MOQ 下形成可执行批次？</p>
+                </div>
+                <div class="mini-card reveal">
+                    <h4>③ 产能均衡</h4>
+                    <p>班次产能限制下如何避免系统过载？</p>
+                </div>
+                <div class="mini-card reveal">
+                    <h4>④ 边界判断</h4>
+                    <p>"接近 MOQ""不足 MOQ""半批白名单" 等情况统一处理</p>
+                </div>
+                <div class="mini-card reveal">
+                    <h4>⑤ 可审计性</h4>
+                    <p>每个订单为什么这样分配？计划员可验证</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 03: ARCHITECTURE OVERVIEW
+         ============================================================ -->
+    <section class="slide" id="slide-2">
+        <div class="slide-content">
+            <div class="section-number reveal">02 — ARCHITECTURE</div>
+            <h2 class="slide-title-text reveal">10 步处理流水线</h2>
+            <div class="flow-steps reveal" style="margin-bottom:clamp(0.8rem,2vh,1.5rem);">
+                <span class="flow-step active">1 读取数据</span><span class="flow-arrow">→</span>
+                <span class="flow-step">2 预处理</span><span class="flow-arrow">→</span>
+                <span class="flow-step">3 解析系统能力</span><span class="flow-arrow">→</span>
+                <span class="flow-step active">4 WIP 分组</span><span class="flow-arrow">→</span>
+                <span class="flow-step">5 搭批/拆批</span><span class="flow-arrow">→</span>
+                <span class="flow-step active">6 系统选择</span><span class="flow-arrow">→</span>
+                <span class="flow-step">7 产能记录</span><span class="flow-arrow">→</span>
+                <span class="flow-step">8 二次合并</span><span class="flow-arrow">→</span>
+                <span class="flow-step">9 超限再平衡</span><span class="flow-arrow">→</span>
+                <span class="flow-step active">10 生成报表</span>
+            </div>
+            <div class="two-col reveal">
+                <div class="accent-card" style="padding:clamp(0.8rem,1.5vw,1.5rem);">
+                    <h3 style="font-size:clamp(0.85rem,1.3vw,1.1rem);">运行方式</h3>
+                    <div class="formula-block" style="margin-top:0.5rem;text-align:left;color:var(--text-on-card);background:rgba(0,0,0,0.15);border:none;">
+                        python src/main.py --date 20260403
+                    </div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:clamp(0.3rem,0.8vh,0.6rem);">
+                    <div style="font-size:var(--small-size);color:var(--text-secondary);">
+                        <span class="tag tag-orange" style="margin-right:4px;">前半段</span> 规则驱动 + 贪心搭批
+                    </div>
+                    <div style="font-size:var(--small-size);color:var(--text-secondary);">
+                        <span class="tag tag-green" style="margin-right:4px;">后半段</span> 多维评分 + 系统分配
+                    </div>
+                    <div style="font-size:var(--small-size);color:var(--text-secondary);">
+                        <span class="tag tag-purple" style="margin-right:4px;">输出</span> Orders / Batches / Alerts + Decision Explain
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 04: DATA SOURCES
+         ============================================================ -->
+    <section class="slide" id="slide-3">
+        <div class="slide-content">
+            <div class="section-number reveal">03 — DATA</div>
+            <h2 class="slide-title-text reveal">4 个数据源</h2>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:clamp(0.5rem,1.2vw,1rem);">
+                <div class="accent-card reveal" style="padding:clamp(0.7rem,1.5vw,1.3rem);">
+                    <h3 style="font-size:clamp(0.9rem,1.4vw,1.2rem);">ZCPRS</h3>
+                    <p style="font-size:var(--small-size);">生产计划主表<br>Order No · Material · Work Center<br>Planned Qty · Start/End DateTime</p>
+                </div>
+                <div class="accent-card green reveal" style="padding:clamp(0.7rem,1.5vw,1.3rem);">
+                    <h3 style="font-size:clamp(0.9rem,1.4vw,1.2rem);">ZC228</h3>
+                    <p style="font-size:var(--small-size);">WIP 消耗明细<br>Parent Ord · Matl-Comp · Amt Reqd<br>链接 WIP 与物料关系</p>
+                </div>
+                <div class="accent-card purple reveal" style="padding:clamp(0.7rem,1.5vw,1.3rem);">
+                    <h3 style="font-size:clamp(0.9rem,1.4vw,1.2rem);">Parameter.csv</h3>
+                    <p style="font-size:var(--small-size);">产品属性映射<br>Material · Matl-Comp · Type<br>SUF · Brand · Seg</p>
+                </div>
+                <div class="accent-card yellow reveal" style="padding:clamp(0.7rem,1.5vw,1.3rem);">
+                    <h3 style="font-size:clamp(0.9rem,1.4vw,1.2rem);">Making Capacity</h3>
+                    <p style="font-size:var(--small-size);">搅拌系统能力<br>机组名 · 支持规格 · 班次上限<br>产品适用性</p>
+                </div>
+            </div>
+            <div class="reveal" style="margin-top:clamp(0.5rem,1.5vh,1rem);display:flex;gap:clamp(0.4rem,0.8vw,0.6rem);flex-wrap:wrap;font-size:var(--small-size);color:var(--text-secondary);">
+                <span>核心字段：</span>
+                <span class="tag tag-orange">Order Number</span>
+                <span class="tag tag-orange">Material</span>
+                <span class="tag tag-green">WIP Code</span>
+                <span class="tag tag-purple">Type (Shampoo/Cond)</span>
+                <span class="tag tag-yellow">Work Center</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 05: MAKING SYSTEMS
+         ============================================================ -->
+    <section class="slide" id="slide-4">
+        <div class="slide-content">
+            <div class="section-number reveal">04 — SYSTEMS</div>
+            <h2 class="slide-title-text reveal">搅拌系统 GSS1 — GSS4</h2>
+            <p class="subtitle reveal" style="margin-bottom:clamp(0.6rem,1.5vh,1rem);">
+                不同系统承担不同产品类型与批量规格
+            </p>
+            <table class="data-table reveal" style="max-width:min(90vw,800px);">
+                <thead>
+                    <tr>
+                        <th>系统</th>
+                        <th>产品类型</th>
+                        <th>主要规格</th>
+                        <th>定位</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="tag tag-orange">GSS1 + GSS2</span></td>
+                        <td>Shampoo</td>
+                        <td>4.4 及以上</td>
+                        <td>主力系统，白名单可做 2.2 half batch</td>
+                    </tr>
+                    <tr>
+                        <td><span class="tag tag-green">GSS3</span></td>
+                        <td>Shampoo</td>
+                        <td>2.2</td>
+                        <td>小批主力承接系统</td>
+                    </tr>
+                    <tr>
+                        <td><span class="tag tag-purple">GSS4</span></td>
+                        <td>Conditioner</td>
+                        <td>1.1 / 2.2 / 4.4 + 组合</td>
+                        <td>护发素专用系统</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="reveal" style="margin-top:clamp(0.5rem,1.5vh,1rem);">
+                <div class="formula-block" style="text-align:left;max-width:min(90vw,700px);">
+                    <span style="color:var(--text-secondary);">白名单规则：</span> GSS1+GSS2 做 2.2 小批 → 需在 <span style="color:var(--card-accent);">12t_to_6t_conversion_list.xlsx</span> 中注册 WIP Code
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 06: SHIFTS & TIME WINDOWS
+         ============================================================ -->
+    <section class="slide" id="slide-5">
+        <div class="slide-content">
+            <div class="section-number reveal">05 — SHIFT & WINDOW</div>
+            <h2 class="slide-title-text reveal">班次划分 & 搭批窗口</h2>
+            <div class="two-col">
+                <div class="reveal-left">
+                    <h3 style="font-size:var(--h3-size);font-family:'Archivo Black',sans-serif;margin-bottom:clamp(0.4rem,1vh,0.8rem);">三班制</h3>
+                    <div style="display:flex;flex-direction:column;gap:clamp(0.3rem,0.6vh,0.5rem);">
+                        <div class="mini-card" style="display:flex;align-items:center;gap:clamp(0.3rem,0.8vw,0.6rem);">
+                            <span class="big-num" style="font-size:clamp(1.2rem,2vw,1.8rem);color:var(--card-accent-4);">N</span>
+                            <div>
+                                <div style="font-size:var(--body-size);font-weight:600;">Night 夜班</div>
+                                <div style="font-size:var(--small-size);color:var(--text-secondary);">00:00 – 07:59</div>
+                            </div>
+                        </div>
+                        <div class="mini-card" style="display:flex;align-items:center;gap:clamp(0.3rem,0.8vw,0.6rem);">
+                            <span class="big-num" style="font-size:clamp(1.2rem,2vw,1.8rem);color:var(--card-accent);">D</span>
+                            <div>
+                                <div style="font-size:var(--body-size);font-weight:600;">Day 白班</div>
+                                <div style="font-size:var(--small-size);color:var(--text-secondary);">08:00 – 15:59</div>
+                            </div>
+                        </div>
+                        <div class="mini-card" style="display:flex;align-items:center;gap:clamp(0.3rem,0.8vw,0.6rem);">
+                            <span class="big-num" style="font-size:clamp(1.2rem,2vw,1.8rem);color:var(--card-accent-3);">M</span>
+                            <div>
+                                <div style="font-size:var(--body-size);font-weight:600;">Mid 中班</div>
+                                <div style="font-size:var(--small-size);color:var(--text-secondary);">16:00 – 23:59</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="reveal-right">
+                    <h3 style="font-size:var(--h3-size);font-family:'Archivo Black',sans-serif;margin-bottom:clamp(0.4rem,1vh,0.8rem);">搭批窗口</h3>
+                    <div class="accent-card" style="padding:clamp(0.6rem,1.2vw,1rem);margin-bottom:clamp(0.3rem,0.6vh,0.5rem);">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <span style="font-size:var(--body-size);font-weight:600;">Shampoo</span>
+                            <span class="big-num" style="font-size:clamp(1.5rem,2.5vw,2.2rem);">16h</span>
+                        </div>
+                    </div>
+                    <div class="accent-card green" style="padding:clamp(0.6rem,1.2vw,1rem);margin-bottom:clamp(0.3rem,0.6vh,0.5rem);">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <span style="font-size:var(--body-size);font-weight:600;">Conditioner</span>
+                            <span class="big-num" style="font-size:clamp(1.5rem,2.5vw,2.2rem);">24h</span>
+                        </div>
+                    </div>
+                    <div style="font-size:var(--small-size);color:var(--text-secondary);margin-top:clamp(0.3rem,0.6vh,0.5rem);">
+                        HPHFPACK 产线强制 24 小时窗口<br>
+                        逻辑：先同日搭批 → 再跨日搭批
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 07: MOQ TARGETS
+         ============================================================ -->
+    <section class="slide" id="slide-6">
+        <div class="slide-content">
+            <div class="section-number reveal">06 — MOQ</div>
+            <h2 class="slide-title-text reveal">目标规格 (MSU)</h2>
+            <p class="subtitle reveal" style="margin-bottom:clamp(0.6rem,1.5vh,1rem);">
+                以 2.2 MSU 为基础的多倍数目标序列
+            </p>
+            <div class="reveal" style="display:flex;gap:clamp(0.4rem,1vw,0.8rem);flex-wrap:wrap;align-items:flex-end;margin-bottom:clamp(0.8rem,2vh,1.5rem);">
+                <div style="text-align:center;">
+                    <div class="big-num" style="font-size:clamp(1rem,2vw,1.6rem);color:var(--card-accent-2);">1.1</div>
+                    <div style="font-size:clamp(0.55rem,0.8vw,0.65rem);color:var(--text-secondary);">Cond only</div>
+                </div>
+                <div style="font-size:var(--small-size);color:var(--text-secondary);padding-bottom:0.3rem;">→</div>
+                <div style="text-align:center;">
+                    <div class="big-num" style="font-size:clamp(1.3rem,2.5vw,2rem);">2.2</div>
+                    <div style="font-size:clamp(0.55rem,0.8vw,0.65rem);color:var(--text-secondary);">1× MOQ</div>
+                </div>
+                <div style="font-size:var(--small-size);color:var(--text-secondary);padding-bottom:0.3rem;">→</div>
+                <div style="text-align:center;">
+                    <div class="big-num" style="font-size:clamp(1.6rem,3vw,2.5rem);">4.4</div>
+                    <div style="font-size:clamp(0.55rem,0.8vw,0.65rem);color:var(--text-secondary);">2× MOQ</div>
+                </div>
+                <div style="font-size:var(--small-size);color:var(--text-secondary);padding-bottom:0.3rem;">→</div>
+                <div style="text-align:center;">
+                    <div class="big-num" style="font-size:clamp(1.3rem,2.5vw,2rem);">6.6</div>
+                    <div style="font-size:clamp(0.55rem,0.8vw,0.65rem);color:var(--text-secondary);">3× MOQ</div>
+                </div>
+                <div style="font-size:var(--small-size);color:var(--text-secondary);padding-bottom:0.3rem;">→</div>
+                <div style="text-align:center;">
+                    <div class="big-num" style="font-size:clamp(1.3rem,2.5vw,2rem);">8.8</div>
+                    <div style="font-size:clamp(0.55rem,0.8vw,0.65rem);color:var(--text-secondary);">4× MOQ</div>
+                </div>
+                <div style="font-size:var(--small-size);color:var(--text-secondary);padding-bottom:0.3rem;">→</div>
+                <div style="text-align:center;">
+                    <div class="big-num" style="font-size:clamp(1.3rem,2.5vw,2rem);">11.0</div>
+                    <div style="font-size:clamp(0.55rem,0.8vw,0.65rem);color:var(--text-secondary);">5× MOQ</div>
+                </div>
+                <div style="font-size:var(--small-size);color:var(--text-secondary);padding-bottom:0.3rem;">→</div>
+                <div style="text-align:center;">
+                    <div class="big-num" style="font-size:clamp(1.3rem,2.5vw,2rem);">13.2</div>
+                    <div style="font-size:clamp(0.55rem,0.8vw,0.65rem);color:var(--text-secondary);">6× MOQ</div>
+                </div>
+            </div>
+            <div class="accent-card reveal" style="padding:clamp(0.6rem,1.2vw,1rem);max-width:min(90vw,700px);">
+                <h3 style="font-size:clamp(0.85rem,1.2vw,1rem);">核心策略</h3>
+                <p style="font-size:var(--small-size);">
+                    搭批目标从<strong>大到小降序尝试</strong>，优先合成 4.4 而非 2.2 —— 减少小批拆分，提升系统利用率。
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 08: DUAL TOLERANCE MECHANISM
+         ============================================================ -->
+    <section class="slide" id="slide-7">
+        <div class="slide-content">
+            <div class="section-number reveal">07 — TOLERANCE</div>
+            <h2 class="slide-title-text reveal">双层容差控制</h2>
+            <p class="subtitle reveal" style="margin-bottom:clamp(0.6rem,1.5vh,1rem);">
+                Preferred（优选）+ Hard（硬边界）分开管理
+            </p>
+            <div class="two-col">
+                <div class="reveal-left">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>MOQ</th><th>Preferred</th><th>Hard</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>1.1</td><td>±0.05</td><td>±0.20</td></tr>
+                            <tr><td>2.2</td><td>±0.08</td><td>±0.30</td></tr>
+                            <tr><td>4.4</td><td>±0.12</td><td>±0.30</td></tr>
+                        </tbody>
+                    </table>
+                    <div style="margin-top:clamp(0.4rem,1vh,0.8rem);font-size:var(--small-size);color:var(--text-secondary);">
+                        多倍 MOQ 时容差放大：<br>
+                        每 +1× 4.4 → Preferred +0.06, Hard +0.20
+                    </div>
+                </div>
+                <div class="reveal-right" style="display:flex;flex-direction:column;gap:clamp(0.3rem,0.6vh,0.5rem);">
+                    <div class="mini-card">
+                        <h4 style="color:var(--card-accent-2);">IN_PREFERRED ✓</h4>
+                        <p>命中优选区间 — 最理想状态</p>
+                    </div>
+                    <div class="mini-card">
+                        <h4 style="color:var(--card-accent-4);">IN_HARD_ONLY ⚠</h4>
+                        <p>未入优选区，但在硬边界内 — 可接受</p>
+                    </div>
+                    <div class="mini-card">
+                        <h4 style="color:#ff4757;">OUTSIDE_HARD ✗</h4>
+                        <p>超出硬边界 — 不允许</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 09: TOLERANCE EXAMPLE
+         ============================================================ -->
+    <section class="slide" id="slide-8">
+        <div class="deco-circle" style="width:300px;height:300px;background:var(--card-accent-2);bottom:-80px;right:10%;"></div>
+        <div class="slide-content">
+            <div class="section-number reveal">07 — EXAMPLE</div>
+            <h2 class="slide-title-text reveal">容差实例</h2>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:clamp(0.5rem,1.2vw,1rem);">
+                <!-- Example A -->
+                <div class="mini-card reveal">
+                    <h4>案例 A: 标准命中</h4>
+                    <div class="formula-block" style="margin:clamp(0.3rem,0.5vh,0.4rem) 0;">
+                        Load = 2.183 → Target 2.2
+                    </div>
+                    <p>Preferred = [2.120, 2.280]</p>
+                    <p style="margin-top:0.2rem;">2.120 ≤ <span style="color:var(--card-accent-2);font-weight:600;">2.183</span> ≤ 2.280</p>
+                    <p style="margin-top:0.2rem;"><span class="tag tag-green">IN_PREFERRED</span></p>
+                </div>
+                <!-- Example B -->
+                <div class="mini-card reveal">
+                    <h4>案例 B: 硬边界内</h4>
+                    <div class="formula-block" style="margin:clamp(0.3rem,0.5vh,0.4rem) 0;">
+                        Load = 2.060 → Target 2.2
+                    </div>
+                    <p>Preferred = [2.12, 2.28] — <span style="color:#ff4757;">不满足</span></p>
+                    <p>Hard = [1.90, 2.50]</p>
+                    <p style="margin-top:0.2rem;">1.900 ≤ <span style="color:var(--card-accent-4);font-weight:600;">2.060</span> ≤ 2.500</p>
+                    <p style="margin-top:0.2rem;"><span class="tag tag-yellow">IN_HARD_ONLY</span></p>
+                </div>
+                <!-- Example C -->
+                <div class="mini-card reveal">
+                    <h4>案例 C: 不足 MOQ</h4>
+                    <div class="formula-block" style="margin:clamp(0.3rem,0.5vh,0.4rem) 0;">
+                        Load = 3.821 → Target 4.4
+                    </div>
+                    <p>比例：3.821 / 4.4 = <span style="color:#ff4757;font-weight:600;">86.8%</span></p>
+                    <p style="margin-top:0.2rem;">&lt; 90% 阈值 → 保留开批 + 备注提醒</p>
+                    <p style="margin-top:0.2rem;"><span class="tag tag-red">UNDER_FILL ⚠</span></p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 10: BATCH FORMATION ALGORITHM
+         ============================================================ -->
+    <section class="slide" id="slide-9">
+        <div class="slide-content">
+            <div class="section-number reveal">08 — ALGORITHM</div>
+            <h2 class="slide-title-text reveal">搭批算法流程</h2>
+            <div class="two-col">
+                <div class="reveal-left">
+                    <div style="display:flex;flex-direction:column;gap:clamp(0.3rem,0.6vh,0.5rem);">
+                        <div class="flow-step active" style="display:flex;align-items:center;gap:0.5rem;">
+                            <span style="font-family:'Archivo Black';color:var(--card-accent);">1</span>
+                            按 WIP Code 分组
+                        </div>
+                        <div class="flow-step" style="display:flex;align-items:center;gap:0.5rem;">
+                            <span style="font-family:'Archivo Black';color:var(--card-accent);">2</span>
+                            小单优先组合（MSU ≤ 3.0）
+                        </div>
+                        <div class="flow-step active" style="display:flex;align-items:center;gap:0.5rem;">
+                            <span style="font-family:'Archivo Black';color:var(--card-accent);">3</span>
+                            目标从大到小降序尝试
+                        </div>
+                        <div class="flow-step" style="display:flex;align-items:center;gap:0.5rem;">
+                            <span style="font-family:'Archivo Black';color:var(--card-accent);">4</span>
+                            先同日 → 再跨日
+                        </div>
+                        <div class="flow-step active" style="display:flex;align-items:center;gap:0.5rem;">
+                            <span style="font-family:'Archivo Black';color:var(--card-accent);">5</span>
+                            规则合法才进入系统比较
+                        </div>
+                    </div>
+                </div>
+                <div class="reveal-right">
+                    <div class="accent-card" style="padding:clamp(0.6rem,1.2vw,1rem);">
+                        <h3 style="font-size:clamp(0.85rem,1.2vw,1rem);">小单组合策略</h3>
+                        <p style="font-size:var(--small-size);margin-bottom:0.4rem;">
+                            <code style="background:rgba(0,0,0,0.2);padding:1px 5px;border-radius:3px;">_build_combo_for_target</code><br>
+                            贪心策略：逐步添加候选订单，直到总量落入目标硬容差范围
+                        </p>
+                        <div style="font-size:var(--small-size);opacity:0.8;">
+                            · 2 单 → 凑 4.4 或 2.2<br>
+                            · 3 单 → 凑 4.4<br>
+                            · 单单直接成批（如 2.18 → 2.2）
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 11: MULTI-ORDER COMBO EXAMPLE
+         ============================================================ -->
+    <section class="slide" id="slide-10">
+        <div class="deco-circle" style="width:400px;height:400px;background:var(--card-accent);top:-120px;left:-100px;"></div>
+        <div class="slide-content">
+            <div class="section-number reveal">08 — EXAMPLE</div>
+            <h2 class="slide-title-text reveal">多单搭批实例</h2>
+            <p class="subtitle reveal" style="margin-bottom:clamp(0.6rem,1.5vh,1rem);">
+                3 个 Conditioner 订单 → 合并为 1×4.4 批次（而非 2×2.2）
+            </p>
+            <div class="reveal" style="max-width:min(90vw,800px);">
+                <table class="data-table">
+                    <thead>
+                        <tr><th>订单</th><th>WIP</th><th>MSU</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Order A</td>
+                            <td style="font-family:monospace;font-size:var(--small-size);">21268746</td>
+                            <td><strong style="color:var(--card-accent);">1.18</strong></td>
+                            <td rowspan="3" style="text-align:center;vertical-align:middle;">
+                                <div style="font-size:clamp(1.5rem,3vw,2.5rem);color:var(--card-accent);font-family:'Archivo Black';">→</div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Order B</td>
+                            <td style="font-family:monospace;font-size:var(--small-size);">21268746</td>
+                            <td><strong style="color:var(--card-accent);">1.10</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Order C</td>
+                            <td style="font-family:monospace;font-size:var(--small-size);">21268746</td>
+                            <td><strong style="color:var(--card-accent);">2.15</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="reveal" style="margin-top:clamp(0.5rem,1.5vh,1rem);display:flex;gap:clamp(0.8rem,2vw,1.5rem);flex-wrap:wrap;align-items:center;">
+                <div class="formula-block" style="flex:1;min-width:200px;">
+                    1.18 + 1.10 + 2.15 = <span style="color:var(--card-accent-2);font-size:clamp(1rem,1.8vw,1.4rem);font-weight:700;">4.43</span>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:var(--small-size);color:var(--text-secondary);margin-bottom:0.2rem;">Target</div>
+                    <div class="big-num" style="font-size:clamp(1.5rem,3vw,2.5rem);">4.4</div>
+                    <div><span class="tag tag-green">IN_PREFERRED ✓</span></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 12: SYSTEM SCORING
+         ============================================================ -->
+    <section class="slide" id="slide-11">
+        <div class="slide-content">
+            <div class="section-number reveal">09 — SCORING</div>
+            <h2 class="slide-title-text reveal">系统评分 (6-Tuple)</h2>
+            <p class="subtitle reveal" style="margin-bottom:clamp(0.6rem,1.5vh,1rem);">
+                候选系统从左到右逐项比较 — 取最小值
+            </p>
+            <div class="formula-block reveal" style="max-width:min(90vw,750px);margin-bottom:clamp(0.6rem,1.5vh,1rem);font-size:var(--body-size);">
+                Score = (<span style="color:var(--card-accent);">overflow</span>, <span style="color:var(--card-accent-4);">gss12_small</span>, <span style="color:var(--card-accent-3);">priority</span>, <span style="color:var(--card-accent-2);">usage</span>, <span style="color:#ff6b81;">closest</span>, <span style="color:var(--text-secondary);">name</span>)
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:clamp(0.3rem,0.8vw,0.6rem);">
+                <div class="mini-card reveal">
+                    <h4>overflow</h4>
+                    <p>是否会超班次上限</p>
+                </div>
+                <div class="mini-card reveal">
+                    <h4 style="color:var(--card-accent-4);">gss12_small</h4>
+                    <p>GSS1+2 做小批惩罚</p>
+                </div>
+                <div class="mini-card reveal">
+                    <h4 style="color:var(--card-accent-3);">priority</h4>
+                    <p>系统优先级序</p>
+                </div>
+                <div class="mini-card reveal">
+                    <h4 style="color:var(--card-accent-2);">usage</h4>
+                    <p>当前班次已占用批次数</p>
+                </div>
+                <div class="mini-card reveal">
+                    <h4 style="color:#ff6b81;">closest</h4>
+                    <p>系统能力与目标接近度</p>
+                </div>
+                <div class="mini-card reveal">
+                    <h4 style="color:var(--text-secondary);">name</h4>
+                    <p>稳定排序兜底字段</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 13: SCORING EXAMPLE
+         ============================================================ -->
+    <section class="slide" id="slide-12">
+        <div class="slide-content">
+            <div class="section-number reveal">09 — EXAMPLE</div>
+            <h2 class="slide-title-text reveal">评分对比实例</h2>
+            <p class="subtitle reveal" style="margin-bottom:clamp(0.6rem,1.5vh,1rem);">
+                Shampoo 批次 Target = 2.2，两个系统均合法 — 谁胜出？
+            </p>
+            <div class="two-col reveal">
+                <div class="accent-card" style="padding:clamp(0.6rem,1.2vw,1rem);">
+                    <h3 style="font-size:clamp(0.9rem,1.4vw,1.1rem);">GSS1 + GSS2</h3>
+                    <div class="formula-block" style="margin-top:0.5rem;color:var(--text-on-card);background:rgba(0,0,0,0.15);border:none;">
+                        (0, <span style="color:#ff4757;font-weight:700;">1</span>, 0, 0, 2.2, "GSS12")
+                    </div>
+                    <p style="font-size:var(--small-size);margin-top:0.4rem;">gss12_small = <strong>1</strong> — 小批惩罚 ❌</p>
+                </div>
+                <div class="accent-card green" style="padding:clamp(0.6rem,1.2vw,1rem);">
+                    <h3 style="font-size:clamp(0.9rem,1.4vw,1.1rem);">GSS3</h3>
+                    <div class="formula-block" style="margin-top:0.5rem;color:var(--text-on-card);background:rgba(0,0,0,0.15);border:none;">
+                        (0, <span style="color:var(--text-on-card);font-weight:700;">0</span>, 1, 0, 0.0, "GSS3")
+                    </div>
+                    <p style="font-size:var(--small-size);margin-top:0.4rem;">gss12_small = <strong>0</strong> — 无惩罚 ✓</p>
+                </div>
+            </div>
+            <div class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem);">
+                <div class="accent-card purple" style="padding:clamp(0.6rem,1.2vw,1rem);max-width:min(90vw,600px);">
+                    <h3 style="font-size:clamp(0.85rem,1.2vw,1rem);">结论</h3>
+                    <p style="font-size:var(--small-size);">
+                        第 2 位 gss12_small：GSS3 (0) &lt; GSS12 (1)<br>
+                        <strong>→ GSS3 胜出</strong>，2.2 小批由小批专用系统承接
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 14: SECOND PASS & REBALANCE
+         ============================================================ -->
+    <section class="slide" id="slide-13">
+        <div class="slide-content">
+            <div class="section-number reveal">10 — OPTIMIZATION</div>
+            <h2 class="slide-title-text reveal">二次合并 & 超限再平衡</h2>
+            <div class="two-col">
+                <div class="reveal-left">
+                    <div class="accent-card" style="padding:clamp(0.6rem,1.2vw,1rem);">
+                        <h3 style="font-size:clamp(0.85rem,1.2vw,1rem);">Second Pass Merge</h3>
+                        <p style="font-size:var(--small-size);">首轮分配后，仍可升级为更大批次的合并机会</p>
+                        <div style="font-size:var(--small-size);margin-top:0.4rem;opacity:0.85;">
+                            <strong>触发条件：</strong><br>
+                            · 同系统 + 同 WIP + 同 Type<br>
+                            · 至少一侧为欠装单批 (Load/Target &lt; 0.90)<br>
+                            · 合并后命中合法目标<br>
+                            · 合并后不恶化超限
+                        </div>
+                    </div>
+                    <div style="margin-top:clamp(0.3rem,0.6vh,0.4rem);font-size:var(--small-size);color:var(--text-secondary);">
+                        示例：3.538 + 13.821 → 合并为 Target 17.6
+                    </div>
+                </div>
+                <div class="reveal-right">
+                    <div class="accent-card green" style="padding:clamp(0.6rem,1.2vw,1rem);">
+                        <h3 style="font-size:clamp(0.85rem,1.2vw,1rem);">Overflow Rebalance</h3>
+                        <p style="font-size:var(--small-size);">当某系统超限时，尝试借用其他系统产能</p>
+                        <div style="font-size:var(--small-size);margin-top:0.4rem;opacity:0.85;">
+                            <strong>典型场景：</strong><br>
+                            · GSS3 超限 → 借 GSS1+GSS2 产能<br>
+                            · 确保班次统计口径一致<br>
+                            · 重建产能占用记录
+                        </div>
+                    </div>
+                    <div style="margin-top:clamp(0.3rem,0.6vh,0.4rem);font-size:var(--small-size);color:var(--text-secondary);">
+                        执行顺序：搭批 → 合并 → 再平衡 → 报表
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 15: OUTPUT REPORTS
+         ============================================================ -->
+    <section class="slide" id="slide-14">
+        <div class="slide-content">
+            <div class="section-number reveal">11 — OUTPUT</div>
+            <h2 class="slide-title-text reveal">4 张报表 + 可解释列</h2>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:clamp(0.4rem,1vw,0.8rem);margin-bottom:clamp(0.6rem,1.5vh,1rem);">
+                <div class="accent-card reveal" style="padding:clamp(0.6rem,1.2vw,1rem);">
+                    <h3 style="font-size:clamp(0.85rem,1.2vw,1rem);">Orders</h3>
+                    <p style="font-size:var(--small-size);">每条订单的分配系统、批次号、备注与告警</p>
+                </div>
+                <div class="accent-card green reveal" style="padding:clamp(0.6rem,1.2vw,1rem);">
+                    <h3 style="font-size:clamp(0.85rem,1.2vw,1rem);">Batches</h3>
+                    <p style="font-size:var(--small-size);">真实物理批次，按系统 × 日期 × 班次</p>
+                </div>
+                <div class="accent-card purple reveal" style="padding:clamp(0.6rem,1.2vw,1rem);">
+                    <h3 style="font-size:clamp(0.85rem,1.2vw,1rem);">Summary</h3>
+                    <p style="font-size:var(--small-size);">By System×Day、By Day×Line、By Seg×Day</p>
+                </div>
+                <div class="accent-card yellow reveal" style="padding:clamp(0.6rem,1.2vw,1rem);">
+                    <h3 style="font-size:clamp(0.85rem,1.2vw,1rem);">Alerts</h3>
+                    <p style="font-size:var(--small-size);">超限告警，去重 + 带具体日期</p>
+                </div>
+            </div>
+            <div class="reveal" style="max-width:min(90vw,800px);">
+                <div class="mini-card" style="border-left:3px solid var(--card-accent);">
+                    <h4>Decision Explain 列示例</h4>
+                    <div class="formula-block" style="margin-top:0.4rem;text-align:left;font-size:clamp(0.6rem,0.85vw,0.72rem);line-height:1.6;">
+                        Target=2.2 | Load=2.183 | Pref=[2.12,2.28] | Hard=[1.90,2.50]<br>
+                        Status=IN_PREFERRED | System=GSS3 | Score=(0,0,1,0,0.0,"GSS3")
+                    </div>
+                    <p style="margin-top:0.3rem;">每张订单都有审计追踪 — 为什么选这个系统、为什么这个目标</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 16: SUMMARY
+         ============================================================ -->
+    <section class="slide" id="slide-15">
+        <div class="deco-circle" style="width:500px;height:500px;background:var(--card-accent);bottom:-200px;right:-150px;"></div>
+        <div class="deco-circle" style="width:350px;height:350px;background:var(--card-accent-3);top:-100px;left:-80px;"></div>
+        <div class="slide-content" style="align-items:center;text-align:center;">
+            <div class="reveal">
+                <span class="tag tag-orange" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);display:inline-block;">SUMMARY</span>
+            </div>
+            <h2 class="reveal" style="font-family:'Archivo Black',sans-serif;font-size:clamp(1.5rem,4vw,3rem);line-height:1.15;margin-bottom:clamp(0.5rem,2vh,1.5rem);max-width:30ch;">
+                规则驱动 + 启发式优化的<br>生产批次决策引擎
+            </h2>
+            <div class="reveal" style="display:flex;flex-wrap:wrap;gap:clamp(0.3rem,0.8vw,0.6rem);justify-content:center;margin-bottom:clamp(0.8rem,2vh,1.5rem);">
+                <span class="tag tag-orange">Rule-based Scheduling</span>
+                <span class="tag tag-green">Heuristic Batch Formation</span>
+                <span class="tag tag-purple">Dual-Tolerance Control</span>
+                <span class="tag tag-yellow">Multi-Criteria Scoring</span>
+                <span class="tag" style="background:rgba(255,107,181,0.15);color:#ff6bb5;">Explainable Output</span>
+            </div>
+            <div class="reveal" style="display:grid;grid-template-columns:repeat(3,auto);gap:clamp(1rem,3vw,3rem);margin-bottom:clamp(0.5rem,1.5vh,1rem);">
+                <div>
+                    <div class="big-num">4</div>
+                    <div style="font-size:var(--small-size);color:var(--text-secondary);">数据源</div>
+                </div>
+                <div>
+                    <div class="big-num" style="color:var(--card-accent-2);">4</div>
+                    <div style="font-size:var(--small-size);color:var(--text-secondary);">搅拌系统</div>
+                </div>
+                <div>
+                    <div class="big-num" style="color:var(--card-accent-3);">10</div>
+                    <div style="font-size:var(--small-size);color:var(--text-secondary);">步流水线</div>
+                </div>
+            </div>
+            <p class="reveal" style="font-size:var(--small-size);color:var(--text-secondary);max-width:45ch;">
+                具备多源数据整合、双层容差控制、局部评分排序、日期班次产能校验与可解释性决策输出能力
+            </p>
+        </div>
+    </section>
+
+    <!-- =========================================
+         JAVASCRIPT: Navigation & Animations
+         ========================================= -->
+    <script>
+        /* === INTERSECTION OBSERVER FOR ANIMATIONS === */
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.15 });
+
+        document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-scale').forEach(el => {
+            observer.observe(el);
+        });
+
+        /* === NAV DOT SYNC === */
+        const slides = document.querySelectorAll('.slide');
+        const dots = document.querySelectorAll('.dot');
+        const counterEl = document.getElementById('current-slide');
+
+        const slideObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const idx = Array.from(slides).indexOf(entry.target);
+                    dots.forEach(d => d.classList.remove('active'));
+                    if (dots[idx]) dots[idx].classList.add('active');
+                    if (counterEl) counterEl.textContent = idx + 1;
+                }
+            });
+        }, { threshold: 0.5 });
+
+        slides.forEach(s => slideObserver.observe(s));
+
+        dots.forEach(dot => {
+            dot.addEventListener('click', () => {
+                const idx = parseInt(dot.dataset.slide);
+                slides[idx]?.scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+
+        /* === KEYBOARD NAVIGATION === */
+        document.addEventListener('keydown', (e) => {
+            const current = Array.from(slides).findIndex(s => {
+                const rect = s.getBoundingClientRect();
+                return rect.top >= -100 && rect.top <= window.innerHeight / 2;
+            });
+
+            if (['ArrowDown', 'ArrowRight', 'Space', 'PageDown'].includes(e.code)) {
+                e.preventDefault();
+                const next = Math.min(current + 1, slides.length - 1);
+                slides[next]?.scrollIntoView({ behavior: 'smooth' });
+            }
+
+            if (['ArrowUp', 'ArrowLeft', 'PageUp'].includes(e.code)) {
+                e.preventDefault();
+                const prev = Math.max(current - 1, 0);
+                slides[prev]?.scrollIntoView({ behavior: 'smooth' });
+            }
+
+            if (e.code === 'Home') {
+                e.preventDefault();
+                slides[0]?.scrollIntoView({ behavior: 'smooth' });
+            }
+
+            if (e.code === 'End') {
+                e.preventDefault();
+                slides[slides.length - 1]?.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    </script>
+</body>
+</html>
