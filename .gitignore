@@ -15,9 +15,11 @@ venv/
 
 # Output reports (generated)
 BatchManagementTool/output/batch_report_*.xlsx
+BatchManagementTool/output/~$*.xlsx
 
 # OS
 Thumbs.db
+~$*
 .DS_Store
 
 # Test cache

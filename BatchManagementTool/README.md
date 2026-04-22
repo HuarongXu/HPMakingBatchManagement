@@ -1,6 +1,34 @@
-# 生产计划管理工具
+# HP Making Batch Management Tool
 
-这是一个根据需求文档开发的生产计划管理工具。
+生产计划批次管理工具 —— 自动化排批、搭批、拆批。
+
+## 快速开始（适用于没有 GitHub 账号的用户）
+
+### 方法一：使用下载脚本（推荐）
+
+1. 安装 [Python 3.8+](https://www.python.org/downloads/)（安装时勾选 **Add Python to PATH**）
+2. 将收到的 `download_tool.py` 保存到电脑上
+3. 打开命令提示符，运行：
+
+```bash
+python download_tool.py ghp_你收到的token
+```
+
+4. 下载完成后：
+```bash
+cd HPMakingBatchManagement\BatchManagementTool
+install_and_run.bat
+```
+
+### 方法二：手动下载 ZIP
+
+如果你有收到的 token，在浏览器中访问：
+```
+https://github.com/HuarongXu/HPMakingBatchManagement/archive/refs/heads/main.zip
+```
+（如果仓库是私有的，需要使用下载脚本方式）
+
+---
 
 ## 目录结构
 
@@ -13,7 +41,7 @@
 - `/output`: 存放程序生成的最终报告。
 - `requirements.txt`: 项目所需的Python库。
 
-## 如何运行
+## 手动运行
 
 1.  **安装依赖**:
     ```bash
@@ -30,3 +58,7 @@
 
 4.  **查看结果**:
     程序运行成功后，将在 `/output` 文件夹中生成结果报告Excel文件。
+
+## 一键运行
+
+Windows 用户可以双击 `install_and_run.bat`，自动安装依赖并运行程序。
