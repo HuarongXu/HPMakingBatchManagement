@@ -787,7 +787,7 @@ class BatchCapacityTracker:
         if explicit:
             allocations: List[Tuple[str, str, int]] = []
             for (usage_date, shift), count in explicit.items():
-                allocations.append((usage_date, shift, int(round(count))))
+                allocations.append((usage_date, shift, int(math.ceil(count - 1e-9))))
             return allocations
 
         if not batch.shift or not batch.date:
@@ -896,6 +896,9 @@ def _refresh_batch_notes(batch: Batch):
         if batch.msu_size and abs(batch.msu_size - 2.2) < 0.01:
             is_half_batch = any(order.allow_gss12_reduced_moq for order in batch.orders)
 
+    # 计算 batch_count：始终使用 physical_batches（整数），保证批次数为整数
+    batch_equivalent = float(batch.physical_batches)
+
     if len(batch.orders) == 1:
         single_order = batch.orders[0]
         note = None
@@ -911,7 +914,7 @@ def _refresh_batch_notes(batch: Batch):
                 if batch.physical_batches <= 1 and underfill_ratio < UNDERFILL_NOTE_MIN_RATIO:
                     note = f"未找到可搭批订单，单独开批（Load {load:.3f} / Target {target:.1f}）"
         single_order.batch_note = note
-        single_order.batch_count = float(batch.physical_batches)
+        single_order.batch_count = batch_equivalent
         return
 
     order_numbers = batch.get_order_numbers()
@@ -1050,6 +1053,12 @@ def _second_pass_merge_batches(
 
                 merged_orders = sorted(left.orders + right.orders, key=lambda order: order.start_datetime)
                 if not _combination_respects_work_center(merged_orders):
+                    continue
+
+                # 检查搭批时间窗口约束（shampoo 16h / conditioner 24h）
+                earliest = merged_orders[0]
+                latest = merged_orders[-1]
+                if not _within_batch_window(earliest, latest, allow_cross_day=True):
                     continue
 
                 merged_load = sum(order.msu_demand or 0.0 for order in merged_orders)

@@ -104,7 +104,25 @@ def _batches_dataframe(batches: List[Batch]) -> Tuple[pd.DataFrame, List[str]]:
         system = batch.assigned_system
         if not system:
             continue
-        summary[(system.name, batch.date, batch.shift)] += batch.physical_batches
+        # 按订单级 batch_count 分配到实际的 日期+班次 桶，
+        # 避免跨日期/班次的合并批次将所有物理批次计入锚点班次
+        explicit: dict[tuple[str, str], float] = defaultdict(float)
+        for order in batch.orders:
+            count_value = float(order.batch_count or 0.0)
+            if count_value <= 0:
+                continue
+            shift = order.shift or batch.shift or 'N'
+            usage_date = (
+                order.start_datetime.date().isoformat()
+                if order.start_datetime
+                else (batch.date or '')
+            )
+            explicit[(usage_date, shift)] += count_value
+        if explicit:
+            for (usage_date, shift), count in explicit.items():
+                summary[(system.name, usage_date, shift)] += int(round(count))
+        else:
+            summary[(system.name, batch.date, batch.shift)] += batch.physical_batches
         if system.name not in max_limits:
             limit = system.total_limit
             if limit is None or (isinstance(limit, (int, float)) and pd.isna(limit)):
