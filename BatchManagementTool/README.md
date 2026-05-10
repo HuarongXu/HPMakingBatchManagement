@@ -56,6 +56,7 @@ HPMakingBatchManagement/
 │   ├── install.bat          ← 一键安装（首次使用）
 │   ├── 启动工具.bat          ← 一键启动（日常使用）
 │   ├── upgrade.bat          ← 一键升级
+│   ├── output/              ← 生成的报告及操作手册
 │   ├── data/                ← 参数配置
 │   │   └── Parameter.csv    ← 产品属性与 WIP 映射
 │   ├── src/                 ← 源代码
@@ -75,7 +76,6 @@ HPMakingBatchManagement/
 │   │   ├── orders.html      ← 订单明细页
 │   │   ├── summary.html     ← 汇总视图页
 │   │   └── alerts.html      ← 告警中心页
-│   ├── output/              ← 生成的报告
 │   └── tests/               ← 测试用例
 ├── scripts/
 │   └── download_tool.py     ← GitHub 下载脚本
@@ -106,6 +106,10 @@ HPMakingBatchManagement/
 ### 4. Alerts 告警中心
 - 按严重级别分类：超限（红）、警告（黄）、信息（蓝）
 - 一键筛选查看各类别告警
+
+### 操作手册
+- 点击页面右上角的「操作手册」按钮可直接跳转查看完整使用说明
+- 内容包括算法逻辑、容差机制、典型案例等详细文档
 
 ---
 

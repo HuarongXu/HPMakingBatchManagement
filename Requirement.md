@@ -659,7 +659,7 @@ Web Dashboard 基于 Flask 构建，前端使用原生 JavaScript + ECharts 图�
 | `install.bat` | 一键安装：检测/安装 Python → 创建虚拟环境 → 安装依赖 |
 | `启动工具.bat` | 一键启动：输入日期 → 启动 Web Dashboard |
 | `upgrade.bat` | 一键升级：备份数据 → 下载最新代码 → 更新依赖 |
-| `install_and_run.bat` | 旧版安装脚本（兼容保留） |
+
 
 ---
 

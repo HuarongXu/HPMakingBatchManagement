@@ -172,6 +172,38 @@
     color: var(--foreground);
 }
 
+/* --- Manual Button --- */
+.manual-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    color: var(--foreground-muted);
+    text-decoration: none;
+    font-size: 11px;
+    font-family: var(--font-body);
+    cursor: pointer;
+    transition: all 200ms var(--ease-out);
+    white-space: nowrap;
+}
+
+.manual-btn:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-hover);
+    color: var(--foreground);
+}
+
+.manual-btn svg {
+    flex-shrink: 0;
+}
+
+.manual-btn-text {
+    font-weight: 500;
+}
+
 .theme-toggle .icon-sun {
     display: none;
 }

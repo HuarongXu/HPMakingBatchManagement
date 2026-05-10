@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_from_directory
 
 from models import Batch, MakingSystem, ProductionOrder
 from summary_tables import SummaryTables, build_summary_tables
@@ -311,6 +311,21 @@ def summary_page():
 @app.route("/alerts")
 def alerts_page():
     return render_template("alerts.html", date_label=_DATA.get("date_label", ""))
+
+
+@app.route("/manual")
+def manual_page():
+    """Serve the tool manual / overview HTML from the output folder."""
+    output_dir = _BASE_DIR / "output"
+    # Find the latest tool_overview HTML
+    candidates = sorted(output_dir.glob("tool_overview_*.html"), reverse=True)
+    if candidates:
+        return send_from_directory(str(output_dir), candidates[0].name)
+    # Fallback to intro
+    intro = output_dir / "HP_Batch_Tool_Intro.html"
+    if intro.exists():
+        return send_from_directory(str(output_dir), "HP_Batch_Tool_Intro.html")
+    return "操作手册文件未找到。请检查 output/ 目录。", 404
 
 
 # ---------------------------------------------------------------------------
