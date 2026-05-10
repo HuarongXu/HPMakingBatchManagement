@@ -1,6 +1,5 @@
 @echo off
 chcp 65001 >nul
-setlocal enabledelayedexpansion
 title HP Making Batch Management Tool - 一键安装
 
 echo.
@@ -23,16 +22,15 @@ echo.
 
 :: 先检查项目自带的 venv
 set "VENV_PYTHON=%~dp0..\.venv\Scripts\python.exe"
-if exist "!VENV_PYTHON!" (
+if exist "%VENV_PYTHON%" (
     echo   √ 已检测到项目虚拟环境
-    set "PYTHON_CMD=!VENV_PYTHON!"
+    set "PYTHON_CMD=%VENV_PYTHON%"
     goto :install_deps
 )
 
 :: 检查系统 Python
 where python >nul 2>&1
 if not errorlevel 1 (
-    :: 验证是否是 Python 3
     python -c "import sys; exit(0 if sys.version_info >= (3, 8) else 1)" >nul 2>&1
     if not errorlevel 1 (
         echo   √ 已检测到系统 Python:
@@ -126,8 +124,8 @@ echo.
 echo [2/4] 正在创建 Python 虚拟环境...
 
 set "VENV_DIR=%~dp0..\.venv"
-if not exist "!VENV_DIR!" (
-    !PYTHON_CMD! -m venv "!VENV_DIR!"
+if not exist "%VENV_DIR%" (
+    "%PYTHON_CMD%" -m venv "%VENV_DIR%"
     if errorlevel 1 (
         echo   × 虚拟环境创建失败
         echo   尝试直接安装依赖...
@@ -138,8 +136,7 @@ if not exist "!VENV_DIR!" (
     echo   √ 虚拟环境已存在
 )
 
-set "PYTHON_CMD=!VENV_DIR!\Scripts\python.exe"
-set "PIP_CMD=!VENV_DIR!\Scripts\pip.exe"
+set "PYTHON_CMD=%VENV_DIR%\Scripts\python.exe"
 
 :: ──────────────────────────────────────────────────────
 :: 第3步: 安装依赖
@@ -152,11 +149,11 @@ echo.
 if exist "%~dp0..\.venv\Scripts\pip.exe" (
     "%~dp0..\.venv\Scripts\pip.exe" install -r "%~dp0requirements.txt" --quiet
 ) else (
-    !PYTHON_CMD! -m pip install -r "%~dp0requirements.txt" --quiet
+    "%PYTHON_CMD%" -m pip install -r "%~dp0requirements.txt" --quiet
 )
 if errorlevel 1 (
     echo   × 依赖安装失败，正在重试...
-    !PYTHON_CMD! -m pip install -r "%~dp0requirements.txt"
+    "%PYTHON_CMD%" -m pip install -r "%~dp0requirements.txt"
     if errorlevel 1 (
         echo.
         echo   × 依赖安装失败，请检查网络连接后重试
@@ -170,7 +167,7 @@ goto :done
 :install_deps_global
 echo.
 echo [3/4] 正在安装项目依赖（全局模式）...
-!PYTHON_CMD! -m pip install -r "%~dp0requirements.txt" --quiet
+"%PYTHON_CMD%" -m pip install -r "%~dp0requirements.txt" --quiet
 if errorlevel 1 (
     echo   × 依赖安装失败
     pause

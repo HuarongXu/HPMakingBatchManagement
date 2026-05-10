@@ -1,6 +1,5 @@
 @echo off
 chcp 65001 >nul
-setlocal enabledelayedexpansion
 title HP Making Batch Management Tool - 升级
 
 echo.
@@ -18,26 +17,28 @@ cd /d "%~dp0"
 :: ──────────────────────────────────────────────────────
 set "VENV_PYTHON=%~dp0..\.venv\Scripts\python.exe"
 
-if exist "!VENV_PYTHON!" (
-    set "PYTHON_CMD=!VENV_PYTHON!"
-) else (
-    where python >nul 2>&1
-    if not errorlevel 1 (
-        set "PYTHON_CMD=python"
-    ) else (
-        echo   × 未检测到 Python 环境，请先运行 "install.bat"
-        pause
-        exit /b 1
-    )
+if exist "%VENV_PYTHON%" (
+    set "PYTHON_CMD=%VENV_PYTHON%"
+    goto :check_git
 )
+
+where python >nul 2>&1
+if not errorlevel 1 (
+    set "PYTHON_CMD=python"
+    goto :check_git
+)
+
+echo   × 未检测到 Python 环境，请先运行 "install.bat"
+pause
+exit /b 1
 
 :: ──────────────────────────────────────────────────────
 :: 检查 Git
 :: ──────────────────────────────────────────────────────
+:check_git
 set "USE_GIT=0"
 set "PROJECT_ROOT=%~dp0.."
 
-:: 检查是否是 git 仓库
 if exist "%PROJECT_ROOT%\.git" (
     where git >nul 2>&1
     if not errorlevel 1 (
@@ -45,7 +46,7 @@ if exist "%PROJECT_ROOT%\.git" (
     )
 )
 
-if "!USE_GIT!"=="1" (
+if "%USE_GIT%"=="1" (
     goto :upgrade_git
 ) else (
     goto :upgrade_download
@@ -72,7 +73,7 @@ echo   √ 代码已更新到最新版本
 echo.
 echo [2/3] 正在更新依赖...
 cd /d "%~dp0"
-!PYTHON_CMD! -m pip install -r requirements.txt --quiet
+"%PYTHON_CMD%" -m pip install -r requirements.txt --quiet
 echo   √ 依赖已更新
 
 echo.
@@ -94,13 +95,16 @@ echo [1/5] 正在下载最新版本...
 
 :: 尝试使用 token (如果存在配置文件)
 set "TOKEN_FILE=%~dp0..\.github_token"
-set "AUTH_HEADER="
-if exist "!TOKEN_FILE!" (
-    set /p GITHUB_TOKEN=<"!TOKEN_FILE!"
-    set "AUTH_HEADER=-Headers @{'Authorization'='token !GITHUB_TOKEN!'}"
+set "GITHUB_TOKEN="
+if exist "%TOKEN_FILE%" (
+    set /p GITHUB_TOKEN=<"%TOKEN_FILE%"
 )
 
-powershell -Command "try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%REPO_URL%' %AUTH_HEADER% -OutFile '%DOWNLOAD_FILE%' -UseBasicParsing } catch { exit 1 }"
+if defined GITHUB_TOKEN (
+    powershell -Command "try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $h = @{'Authorization'='token %GITHUB_TOKEN%'}; Invoke-WebRequest -Uri '%REPO_URL%' -Headers $h -OutFile '%DOWNLOAD_FILE%' -UseBasicParsing } catch { exit 1 }"
+) else (
+    powershell -Command "try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%REPO_URL%' -OutFile '%DOWNLOAD_FILE%' -UseBasicParsing } catch { exit 1 }"
+)
 if errorlevel 1 (
     echo.
     echo   × 下载失败！
@@ -138,6 +142,7 @@ echo   √ 用户数据已备份到 _backup 文件夹
 
 echo [4/5] 正在更新程序文件...
 :: 找到解压后的目录（通常是 HPMakingBatchManagement-main）
+setlocal enabledelayedexpansion
 set "UPDATE_SOURCE="
 for /d %%D in ("%EXTRACT_DIR%\*") do (
     set "UPDATE_SOURCE=%%D"
@@ -145,6 +150,7 @@ for /d %%D in ("%EXTRACT_DIR%\*") do (
 
 if "!UPDATE_SOURCE!"=="" (
     echo   × 解压后未找到文件
+    endlocal
     pause
     exit /b 1
 )
@@ -173,11 +179,12 @@ if exist "!UPDATE_SOURCE!\scripts" (
     if not exist "%PROJECT_ROOT%\scripts" mkdir "%PROJECT_ROOT%\scripts"
     xcopy "!UPDATE_SOURCE!\scripts\*.*" "%PROJECT_ROOT%\scripts\" /s /q /y >nul 2>&1
 )
+endlocal
 
 echo   √ 程序文件已更新
 
 echo [5/5] 正在更新依赖...
-!PYTHON_CMD! -m pip install -r "%~dp0requirements.txt" --quiet
+"%PYTHON_CMD%" -m pip install -r "%~dp0requirements.txt" --quiet
 echo   √ 依赖已更新
 
 :: 清理临时文件
