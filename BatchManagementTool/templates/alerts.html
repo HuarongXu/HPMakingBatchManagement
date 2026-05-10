@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}HP Batch — 告警中心{% endblock %}
+{% block page_title %}Alerts 告警中心{% endblock %}
+
+{% block content %}
+<!-- Filter Buttons -->
+<div class="filters-bar mb-16">
+    <button class="filter-btn alert-filter-btn active" data-alert-filter="all">全部</button>
+    <button class="filter-btn alert-filter-btn" data-alert-filter="critical">🔴 超限</button>
+    <button class="filter-btn alert-filter-btn" data-alert-filter="warning">🟡 警告</button>
+    <button class="filter-btn alert-filter-btn" data-alert-filter="info">ℹ️ 信息</button>
+</div>
+
+<!-- Alerts Container -->
+<div id="alerts-container">
+    <div class="text-muted" style="text-align:center;padding:48px">加载中...</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    AlertsView.init();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}HP Plant Making 批次管理系统{% endblock %}
+{% block topbar_class %}topbar-hero{% endblock %}
+{% block title_class %}title-hero{% endblock %}
+{% block page_title %}HP Plant Making 批次管理系统{% endblock %}
+
+{% block content %}
+<!-- KPI Cards -->
+<div class="kpi-grid">
+    <div class="kpi-card animate-in stagger-1">
+        <div class="kpi-label">Total Orders</div>
+        <div class="kpi-value" data-count-up data-target="{{ kpi.total_orders }}">0</div>
+        <div class="kpi-sub">Orders processed</div>
+    </div>
+    <div class="kpi-card animate-in stagger-2">
+        <div class="kpi-label">Total Batches</div>
+        <div class="kpi-value" data-count-up data-target="{{ kpi.total_batches }}">0</div>
+        <div class="kpi-sub">Batches formed</div>
+    </div>
+    <div class="kpi-card animate-in stagger-3">
+        <div class="kpi-label">Avg Utilization</div>
+        <div class="kpi-value" data-count-up data-target="{{ kpi.utilisation }}" data-suffix="%" data-decimals="1">0</div>
+        <div class="kpi-sub">{{ kpi.num_days }} day avg</div>
+    </div>
+    <div class="kpi-card animate-in stagger-4 {{ 'alert-pulse' if kpi.critical_alerts > 0 else '' }}">
+        <div class="kpi-label">Alerts</div>
+        <div class="kpi-value {% if kpi.critical_alerts > 0 %}text-destructive{% elif kpi.total_alerts > 0 %}text-warning{% else %}text-success{% endif %}" data-count-up data-target="{{ kpi.total_alerts }}">0</div>
+        <div class="kpi-sub">
+            {% if kpi.critical_alerts > 0 %}
+                {{ kpi.critical_alerts }} critical
+            {% endif %}
+            {% if kpi.warning_alerts > 0 %}
+                {{ kpi.warning_alerts }} warning
+            {% endif %}
+            {% if kpi.total_alerts == 0 %}
+                All clear
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="charts-grid">
+    <div class="card animate-in" style="animation-delay:200ms">
+        <div class="card-header">
+            <span class="card-title">System Capacity Heatmap (by Day)</span>
+        </div>
+        <div class="chart-container" id="chart-heatmap"></div>
+    </div>
+    <div class="card animate-in" style="animation-delay:250ms">
+        <div class="card-header">
+            <span class="card-title">Product Distribution</span>
+        </div>
+        <div class="chart-container" id="chart-donut"></div>
+    </div>
+</div>
+
+<!-- Alerts Preview -->
+<div class="card animate-in" style="animation-delay:300ms">
+    <div class="card-header">
+        <span class="card-title">Alerts</span>
+        <a href="/alerts" class="alert-link">View all →</a>
+    </div>
+    <div id="dashboard-alerts" style="max-height:200px;overflow-y:auto">
+        <div class="text-muted" style="padding:16px;text-align:center">Loading...</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    await DashboardCharts.init();
+
+    try {
+        const resp = await fetch('/api/alerts');
+        const alerts = await resp.json();
+        const container = document.getElementById('dashboard-alerts');
+        const iconMap = { critical: '\u{1F534}', warning: '\u{1F7E1}', info: '\u2139\uFE0F' };
+        const preview = alerts.slice(0, 3);
+
+        if (preview.length === 0) {
+            container.innerHTML = `<div class="empty-state" style="padding:20px"><div class="empty-state-icon">\u2705</div><div class="empty-state-text">No alerts \u2014 all systems nominal</div></div>`;
+        } else {
+            container.innerHTML = preview.map((a, i) => `
+                <div class="alert-item ${a.severity} animate-in" style="animation-delay:${300 + i * 30}ms">
+                    <span class="alert-icon">${iconMap[a.severity] || '\u2139\uFE0F'}</span>
+                    <div>
+                        <div class="alert-text">${escapeHtml(a.text)}</div>
+                        <a href="/orders" class="alert-link">View orders \u2192</a>
+                    </div>
+                </div>
+            `).join('');
+            if (alerts.length > 3) {
+                container.innerHTML += `<div style="text-align:center;padding:8px"><a href="/alerts" class="alert-link">${alerts.length - 3} more alerts \u2192</a></div>`;
+            }
+        }
+    } catch(e) { console.error(e); }
+});
+</script>
+{% endblock %}

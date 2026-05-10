@@ -1,64 +1,158 @@
 # HP Making Batch Management Tool
 
-生产计划批次管理工具 —— 自动化排批、搭批、拆批。
+生产计划批次管理工具 —— 自动化排批、搭批、拆批，配有 Web 交互式仪表盘。
 
-## 快速开始（适用于没有 GitHub 账号的用户）
+---
 
-### 方法一：使用下载脚本（推荐）
+## 功能概览
 
-1. 安装 [Python 3.8+](https://www.python.org/downloads/)（安装时勾选 **Add Python to PATH**）
-2. 将收到的 `download_tool.py` 保存到电脑上
-3. 打开命令提示符，运行：
+本工具用于 HP 洗护生产计划的批次管理与搅拌系统分配，核心功能包括：
 
-```bash
-python download_tool.py ghp_你收到的token
-```
+- **自动排批** — 根据 WIP Code、产品类型、MOQ 规则自动形成合法批次
+- **搭批优化** — 支持多订单搭批、小单配对、跨班次组合
+- **双层容差控制** — Preferred / Hard 容差机制，兼顾最优与可行
+- **系统自动分配** — GSS1+2 / GSS3 / GSS4 智能选择与评分
+- **Web Dashboard** — 浏览器交互式仪表盘，含总览、订单明细、汇总、告警四大视图
+- **可解释输出** — Decision Explain 提供逐单决策解释
 
-4. 下载完成后：
-```bash
-cd HPMakingBatchManagement\BatchManagementTool
-install_and_run.bat
-```
+---
 
-### 方法二：手动下载 ZIP
+## 快速开始（适用于所有用户）
 
-如果你有收到的 token，在浏览器中访问：
-```
-https://github.com/HuarongXu/HPMakingBatchManagement/archive/refs/heads/main.zip
-```
-（如果仓库是私有的，需要使用下载脚本方式）
+### 第一步：安装
+
+1. 解压收到的 ZIP 压缩包到电脑任意位置
+2. 打开 `BatchManagementTool` 文件夹
+3. **双击 `install.bat`**（一键安装）
+   - 自动检测并安装 Python（如未安装）
+   - 自动创建虚拟环境
+   - 自动安装所有依赖
+
+> **注意**：首次安装需要联网，安装过程约 2-5 分钟。
+
+### 第二步：准备数据
+
+将生产数据文件放到项目根目录的 `1.DataBase` 文件夹中：
+- `ZCPRS_MMDDYYYY.csv` — 生产计划主表
+- `ZC228_MMDDYYYY.csv` — WIP 消耗明细
+
+### 第三步：启动使用
+
+**双击 `启动工具.bat`**，输入要分析的日期（格式：YYYYMMDD），浏览器将自动打开仪表盘。
+
+### 升级到新版本
+
+**双击 `upgrade.bat`**，自动从 GitHub 下载最新版本并更新（用户数据自动备份）。
 
 ---
 
 ## 目录结构
 
-- `/data`: 存放原始数据文件（.csv, .xls）。**请将您的数据文件放在这里。**
-- `/src`: 存放核心源代码。
-  - `main.py`: 主程序入口。
-  - `data_loader.py`: 数据加载和预处理模块。
-  - `models.py`: 定义核心数据模型（类）。
-  - `logic.py`: 核心业务逻辑和算法模块。
-- `/output`: 存放程序生成的最终报告。
-- `requirements.txt`: 项目所需的Python库。
+```
+HPMakingBatchManagement/
+├── 1.DataBase/              ← 数据文件目录
+│   └── CSV/                 ← CSV 格式数据
+├── BatchManagementTool/     ← 主程序目录
+│   ├── install.bat          ← 一键安装（首次使用）
+│   ├── 启动工具.bat          ← 一键启动（日常使用）
+│   ├── upgrade.bat          ← 一键升级
+│   ├── data/                ← 参数配置
+│   │   └── Parameter.csv    ← 产品属性与 WIP 映射
+│   ├── src/                 ← 源代码
+│   │   ├── main.py          ← 主程序入口
+│   │   ├── data_loader.py   ← 数据加载与预处理
+│   │   ├── models.py        ← 数据模型定义
+│   │   ├── logic.py         ← 核心业务逻辑与算法
+│   │   ├── report.py        ← 报告生成
+│   │   ├── summary_tables.py← 汇总表计算
+│   │   └── web_server.py    ← Web Dashboard 服务
+│   ├── static/              ← 前端静态资源
+│   │   ├── css/style.css
+│   │   └── js/app.js
+│   ├── templates/           ← 页面模板
+│   │   ├── base.html        ← 基础布局
+│   │   ├── dashboard.html   ← 总览页
+│   │   ├── orders.html      ← 订单明细页
+│   │   ├── summary.html     ← 汇总视图页
+│   │   └── alerts.html      ← 告警中心页
+│   ├── output/              ← 生成的报告
+│   └── tests/               ← 测试用例
+├── scripts/
+│   └── download_tool.py     ← GitHub 下载脚本
+└── Requirement.md           ← 需求与实施说明文档
+```
 
-## 手动运行
+---
 
-1.  **安装依赖**:
-    ```bash
-    pip install -r requirements.txt
-    ```
+## Web Dashboard 页面说明
 
-2.  **准备数据**:
-    将 `ZCPRS`, `ZC228`, `Parameter`, `Making Capacity` 等数据文件放入 `/data` 文件夹。
+### 1. Dashboard 总览
+- **KPI 卡片** — 总订单数、总批次数、平均利用率、告警数
+- **系统产能热力图** — 各系统按日期的使用率可视化
+- **产品分布** — Shampoo / Conditioner 占比
+- **告警预览** — 最近的系统告警
 
-3.  **运行程序**:
-    ```bash
-    python src/main.py
-    ```
+### 2. Orders 订单明细
+- 全量订单搜索、筛选（系统/班次/类型/产线/日期）
+- 排序、分页浏览
+- 点击订单查看详细信息（含 Decision Explain）
+- 导出 Excel/CSV
 
-4.  **查看结果**:
-    程序运行成功后，将在 `/output` 文件夹中生成结果报告Excel文件。
+### 3. Summary 汇总视图
+- **Daily Batch Count** — 每日批次数按产品类型堆叠图
+- **System Utilization** — 各系统每日使用率
+- **三个汇总表** — System×Day×Product / Day×Line / Segment×Day
 
-## 一键运行
+### 4. Alerts 告警中心
+- 按严重级别分类：超限（红）、警告（黄）、信息（蓝）
+- 一键筛选查看各类别告警
 
-Windows 用户可以双击 `install_and_run.bat`，自动安装依赖并运行程序。
+---
+
+## 高级用法
+
+### 命令行运行
+
+```bash
+# 分析指定日期数据
+python src/main.py --date 20260403
+
+# 分析并启动 Web Dashboard
+python src/main.py --date 20260403 --web
+
+# 不指定日期（自动加载最新数据）
+python src/main.py --web
+```
+
+### 手动安装依赖
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## 常见问题
+
+**Q: 双击 bat 文件闪退怎么办？**
+A: 右键 → "以管理员身份运行"，或在命令提示符中手动运行。
+
+**Q: 提示"Python未找到"怎么办？**
+A: 运行 `install.bat`，它会自动下载安装 Python。
+
+**Q: 浏览器没有自动打开？**
+A: 手动在浏览器中输入 `http://localhost:8050`。
+
+**Q: 数据文件格式要求？**
+A: 支持 CSV、XLS、XLSX 格式。文件名需为 `ZCPRS_MMDDYYYY` 或 `ZC228_MMDDYYYY` 格式。
+
+**Q: 如何切换浅色/深色主题？**
+A: 点击页面右上角的主题切换按钮。
+
+---
+
+## 技术栈
+
+- **后端** — Python 3.8+, Flask, Pandas
+- **前端** — HTML5, CSS3, JavaScript (ES6+), ECharts 5.5
+- **数据格式** — CSV, Excel (XLS/XLSX)

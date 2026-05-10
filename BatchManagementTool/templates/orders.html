@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}HP Batch — 订单明细{% endblock %}
+{% block page_title %}Orders 订单明细{% endblock %}
+
+{% block content %}
+<!-- Search -->
+<div class="search-container">
+    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" class="search-bar" id="orders-search" placeholder="搜索订单号、物料、WIP Code...">
+    <button class="search-clear" id="orders-search-clear" title="清除">✕</button>
+    <span class="search-hint">/</span>
+</div>
+
+<!-- Filters -->
+<div class="filters-bar">
+    <div class="filter-group">
+        <button class="filter-btn" data-filter="GSS1 + GSS2" data-filter-group="system">GSS1+2</button>
+        <button class="filter-btn" data-filter="GSS3" data-filter-group="system">GSS3</button>
+        <button class="filter-btn" data-filter="GSS4 (Cond)" data-filter-group="system">GSS4</button>
+    </div>
+    <div class="filter-separator"></div>
+    <div class="filter-group">
+        <button class="filter-btn" data-filter="N" data-filter-group="shift">N班</button>
+        <button class="filter-btn" data-filter="D" data-filter-group="shift">D班</button>
+        <button class="filter-btn" data-filter="M" data-filter-group="shift">M班</button>
+    </div>
+    <div class="filter-separator"></div>
+    <div class="filter-group">
+        <button class="filter-btn" data-filter="Shampoo" data-filter-group="type">Shampoo</button>
+        <button class="filter-btn" data-filter="Conditioner" data-filter-group="type">Conditioner</button>
+    </div>
+    <div class="filter-separator"></div>
+    <div class="filter-group">
+        <button class="filter-btn" data-filter="HPHCPACK" data-filter-group="wc">Line C</button>
+        <button class="filter-btn" data-filter="HPHDPACK" data-filter-group="wc">Line D</button>
+        <button class="filter-btn" data-filter="HPHEPACK" data-filter-group="wc">Line E</button>
+        <button class="filter-btn" data-filter="HPHFPACK" data-filter-group="wc">Line F</button>
+        <button class="filter-btn" data-filter="HPHKPACK" data-filter-group="wc">Line K</button>
+        <button class="filter-btn" data-filter="HPHRPACK" data-filter-group="wc">Line R</button>
+    </div>
+    <div class="filter-separator"></div>
+    <div class="filter-group" id="date-filter-group">
+    </div>
+    <div class="filter-separator"></div>
+    <button class="filter-clear" id="clear-filters">清除全部</button>
+    <button class="export-btn" id="export-excel" title="导出Excel">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        导出Excel
+    </button>
+</div>
+
+<!-- Results count -->
+<div class="search-results-count" id="orders-count">加载中...</div>
+
+<!-- Table -->
+<div class="table-wrapper">
+    <table class="data-table" id="orders-table">
+        <thead>
+            <tr>
+                <th onclick="OrdersTable.sort('order_number')">Order # <span class="sort-arrow">▲</span></th>
+                <th onclick="OrdersTable.sort('material')">Material <span class="sort-arrow">▲</span></th>
+                <th onclick="OrdersTable.sort('material_description')">Description <span class="sort-arrow">▲</span></th>
+                <th onclick="OrdersTable.sort('work_center')">WC <span class="sort-arrow">▲</span></th>
+                <th onclick="OrdersTable.sort('shift')">Shift <span class="sort-arrow">▲</span></th>
+                <th onclick="OrdersTable.sort('start')">Start <span class="sort-arrow">▲</span></th>
+                <th onclick="OrdersTable.sort('end')">End <span class="sort-arrow">▲</span></th>
+                <th onclick="OrdersTable.sort('msu_demand')">MSU <span class="sort-arrow">▲</span></th>
+                <th onclick="OrdersTable.sort('assigned_system')">System <span class="sort-arrow">▲</span></th>
+                <th onclick="OrdersTable.sort('batch_id')">Batch <span class="sort-arrow">▲</span></th>
+                <th>Status</th>
+                <th>⚠</th>
+            </tr>
+        </thead>
+        <tbody id="orders-tbody">
+            <tr><td colspan="12" class="text-muted" style="text-align:center;padding:32px">加载中...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Pagination -->
+<div class="pagination" id="orders-pagination"></div>
+
+<!-- Detail Panel -->
+<div class="detail-overlay" id="detail-overlay"></div>
+<div class="detail-panel" id="detail-panel">
+    <button class="detail-close">✕</button>
+    <div class="detail-body"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    OrdersTable.init();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}HP Batch — 汇总视图{% endblock %}
+{% block page_title %}Summary 汇总视图{% endblock %}
+
+{% block content %}
+<!-- Summary Charts -->
+<div class="summary-charts-grid mb-24">
+    <div class="card animate-in stagger-1">
+        <div class="card-header">
+            <span class="card-title">Daily Batch Count by Product</span>
+        </div>
+        <div class="summary-chart-container" id="chart-daily-trend"></div>
+    </div>
+    <div class="card animate-in stagger-2">
+        <div class="card-header">
+            <span class="card-title">System Utilization by Day</span>
+        </div>
+        <div class="summary-chart-container" id="chart-system-daily"></div>
+    </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+    <button class="tab-btn active" data-tab="system">System × Day × Product</button>
+    <button class="tab-btn" data-tab="line">Day × Line</button>
+    <button class="tab-btn" data-tab="segment">Segment × Day</button>
+</div>
+
+<!-- Tab Contents -->
+<div class="tab-content active" id="tab-system">
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">System × Day × Product</span>
+        </div>
+        <div id="summary-system-table">
+            <div class="text-muted" style="text-align:center;padding:32px">Loading...</div>
+        </div>
+    </div>
+</div>
+
+<div class="tab-content" id="tab-line">
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Day × Line × System</span>
+        </div>
+        <div id="summary-line-content">
+            <div class="text-muted" style="text-align:center;padding:32px">Loading...</div>
+        </div>
+    </div>
+</div>
+
+<div class="tab-content" id="tab-segment">
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Segment × Day</span>
+        </div>
+        <div id="summary-segment-table">
+            <div class="text-muted" style="text-align:center;padding:32px">Loading...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    SummaryView.init();
+});
+</script>
+{% endblock %}

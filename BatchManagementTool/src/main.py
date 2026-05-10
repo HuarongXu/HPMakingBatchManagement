@@ -17,7 +17,7 @@ from logic import process_logic
 from report import generate_report
 
 
-def run_analysis(target_date: Optional[str] = None):
+def run_analysis(target_date: Optional[str] = None, web: bool = False):
     """
     执行完整分析流程
     """
@@ -43,14 +43,21 @@ def run_analysis(target_date: Optional[str] = None):
     # 调用 logic.py 中的函数来处理数据
     processed_orders, batches, alerts = process_logic(all_data)
     
-    # --- 第三阶段：生成报告 (待开发) ---
+    # --- 第三阶段：生成报告 ---
     print("\n--- 阶段3: 生成报告 ---")
     report_path = generate_report(processed_orders, batches, alerts)
     print(f"报告已生成: {report_path}")
     
-    print("\n======================================")
-    print("=           分析流程结束           =")
-    print("======================================")
+    # --- 第四阶段：启动 Web Dashboard（可选） ---
+    if web:
+        print("\n--- 阶段4: 启动 Web Dashboard ---")
+        from web_server import start_server
+        start_server(processed_orders, batches, alerts, target_date=target_date)
+    else:
+        print("\n======================================")
+        print("=           分析流程结束           =")
+        print("======================================")
+        print("\n提示: 添加 --web 参数可启动交互式仪表盘。")
 
 
 if __name__ == "__main__":
@@ -60,5 +67,11 @@ if __name__ == "__main__":
         "-d",
         help="指定要加载的数据日期，例如 2026/01/19 或 20260119。"
     )
+    parser.add_argument(
+        "--web",
+        "-w",
+        action="store_true",
+        help="运行后启动 Web Dashboard（浏览器自动打开 localhost:8050）。"
+    )
     args = parser.parse_args()
-    run_analysis(target_date=args.date)
+    run_analysis(target_date=args.date, web=args.web)
