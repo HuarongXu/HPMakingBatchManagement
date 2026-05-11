@@ -255,8 +255,11 @@ def _build_product_distribution(orders: List[ProductionOrder]) -> dict:
 
 def _classify_alerts(alerts: List[str]) -> list:
     """Classify alerts into categories with severity."""
+    import re
     classified = []
     seen = set()
+    # Pattern: "2026-05-13 N班 GSS3 计划 ..."
+    _alert_re = re.compile(r"^(\d{4}-\d{2}-\d{2})\s+([NDMA])班\s+(.+?)\s+计划")
     for alert_text in alerts:
         if alert_text in seen:
             continue
@@ -267,7 +270,13 @@ def _classify_alerts(alerts: List[str]) -> list:
             severity = "warning"
         else:
             severity = "info"
-        classified.append({"text": alert_text, "severity": severity})
+        entry = {"text": alert_text, "severity": severity}
+        m = _alert_re.match(alert_text)
+        if m:
+            entry["date"] = m.group(1)
+            entry["shift"] = m.group(2)
+            entry["system"] = m.group(3)
+        classified.append(entry)
     # Sort: critical first
     classified.sort(key=lambda x: {"critical": 0, "warning": 1, "info": 2}[x["severity"]])
     return classified
@@ -417,8 +426,10 @@ def start_server(
     from report import _batches_dataframe
     _, batch_alerts = _batches_dataframe(batches)
     all_alerts = alerts + batch_alerts
-    _DATA["classified_alerts"] = _classify_alerts(all_alerts)
-    _DATA["kpi"] = _build_kpi(orders, batches, all_alerts)
+    classified = _classify_alerts(all_alerts)
+    _DATA["classified_alerts"] = classified
+    # Use deduplicated count (matching what's displayed) for KPI
+    _DATA["kpi"] = _build_kpi(orders, batches, [a["text"] for a in classified])
 
     # Summary tables
     _DATA["summary_system_by_day"] = _summary_df_to_list(summaries.system_by_day)

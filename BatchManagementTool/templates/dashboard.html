@@ -49,9 +49,9 @@
     </div>
     <div class="card animate-in" style="animation-delay:250ms">
         <div class="card-header">
-            <span class="card-title">Product Distribution</span>
+            <span class="card-title">System Capacity Heatmap (by Shift)</span>
         </div>
-        <div class="chart-container" id="chart-donut"></div>
+        <div class="chart-container" id="chart-heatmap-shift"></div>
     </div>
 </div>
 
@@ -82,15 +82,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (preview.length === 0) {
             container.innerHTML = `<div class="empty-state" style="padding:20px"><div class="empty-state-icon">\u2705</div><div class="empty-state-text">No alerts \u2014 all systems nominal</div></div>`;
         } else {
-            container.innerHTML = preview.map((a, i) => `
+            container.innerHTML = preview.map((a, i) => {
+                let linkHref = '/orders';
+                const params = [];
+                if (a.system) params.push('system=' + encodeURIComponent(a.system));
+                if (a.date) params.push('date=' + encodeURIComponent(a.date));
+                if (a.shift) params.push('shift=' + encodeURIComponent(a.shift));
+                if (params.length) linkHref += '?' + params.join('&');
+                return `
                 <div class="alert-item ${a.severity} animate-in" style="animation-delay:${300 + i * 30}ms">
                     <span class="alert-icon">${iconMap[a.severity] || '\u2139\uFE0F'}</span>
                     <div>
                         <div class="alert-text">${escapeHtml(a.text)}</div>
-                        <a href="/orders" class="alert-link">View orders \u2192</a>
+                        <a href="${linkHref}" class="alert-link">View orders \u2192</a>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
             if (alerts.length > 3) {
                 container.innerHTML += `<div style="text-align:center;padding:8px"><a href="/alerts" class="alert-link">${alerts.length - 3} more alerts \u2192</a></div>`;
             }

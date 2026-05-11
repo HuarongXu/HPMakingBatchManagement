@@ -195,7 +195,41 @@ const OrdersTable = {
         this.filtered = [...this.allOrders];
         this.populateDateFilter();
         this.bindEvents();
+        this._applyUrlFilters();
         this.render();
+    },
+
+    _applyUrlFilters() {
+        const params = new URLSearchParams(window.location.search);
+        const system = params.get('system');
+        const date = params.get('date');
+        const shift = params.get('shift');
+        let hasFilter = false;
+
+        if (system) {
+            this.activeFilters.system = [system];
+            document.querySelectorAll('.filter-btn[data-filter-group="system"]').forEach(btn => {
+                if (btn.dataset.filter === system) btn.classList.add('active');
+            });
+            hasFilter = true;
+        }
+        if (shift) {
+            this.activeFilters.shift = [shift];
+            document.querySelectorAll('.filter-btn[data-filter-group="shift"]').forEach(btn => {
+                if (btn.dataset.filter === shift) btn.classList.add('active');
+            });
+            hasFilter = true;
+        }
+        if (date) {
+            this.activeFilters.date = [date];
+            document.querySelectorAll('.filter-btn[data-filter-group="date"]').forEach(btn => {
+                if (btn.dataset.filter === date) btn.classList.add('active');
+            });
+            hasFilter = true;
+        }
+        if (hasFilter) {
+            this.applyFilters();
+        }
     },
 
     populateDateFilter() {
@@ -359,16 +393,19 @@ const OrdersTable = {
                 <td>${o.shift}</td>
                 <td class="col-mono">${o.start || ''}</td>
                 <td class="col-mono">${o.end || ''}</td>
-                <td class="col-mono">${o.msu_demand}</td>
+                <td class="col-mono calc-cell" data-calc-value="${o.msu_demand}">${o.msu_demand}</td>
                 <td>${o.assigned_system}</td>
                 <td class="col-mono">${highlightText(o.batch_id, q)}</td>
-                <td><span class="status-dot ${dotClass}"></span>${statusInfo.label}</td>
+                <td class="col-mono calc-cell" data-calc-value="${o.batch_count}">${o.batch_count}</td>
+                <td title="${escapeHtml(o.batch_note || '')}">${escapeHtml((o.batch_note || '').substring(0, 30))}</td>
                 <td>${o.alerts && o.alerts.length ? '⚠' : ''}</td>
             </tr>`;
         }).join('');
 
         tbody.querySelectorAll('tr').forEach(tr => {
-            tr.addEventListener('click', () => {
+            tr.addEventListener('click', (e) => {
+                // Don't open detail panel when clicking calc cells
+                if (e.target.closest('.calc-cell')) return;
                 const idx = parseInt(tr.dataset.orderIdx);
                 this.showDetail(this.filtered[idx]);
             });
@@ -521,6 +558,91 @@ const OrdersTable = {
 };
 
 // ============================================================
+// Cell Calculator (Ctrl+Click to accumulate sum)
+// ============================================================
+
+const CellCalc = {
+    values: [],
+    selectedCells: new Set(),
+    badge: null,
+
+    init() {
+        // Create floating badge
+        this.badge = document.createElement('div');
+        this.badge.className = 'calc-badge';
+        this.badge.style.display = 'none';
+        this.badge.innerHTML = '<span class="calc-badge-label">Sum:</span> <span class="calc-badge-value">0</span> <span class="calc-badge-count"></span><button class="calc-badge-close" title="Clear">✕</button>';
+        document.body.appendChild(this.badge);
+
+        this.badge.querySelector('.calc-badge-close').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.clear();
+        });
+
+        // Delegate click on table
+        const table = document.getElementById('orders-table');
+        if (!table) return;
+        table.addEventListener('click', (e) => {
+            const cell = e.target.closest('.calc-cell');
+            if (!cell) return;
+            const val = parseFloat(cell.dataset.calcValue);
+            if (isNaN(val)) return;
+
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (this.selectedCells.has(cell)) {
+                    // Toggle off: remove from selection
+                    this.selectedCells.delete(cell);
+                    cell.classList.remove('calc-selected');
+                    const idx = this.values.indexOf(val);
+                    if (idx !== -1) this.values.splice(idx, 1);
+                } else {
+                    // Add to selection
+                    this.selectedCells.add(cell);
+                    this.values.push(val);
+                    cell.classList.add('calc-selected');
+                }
+            } else {
+                // Start new selection
+                this._clearHighlights();
+                this.selectedCells = new Set([cell]);
+                this.values = [val];
+                cell.classList.add('calc-selected');
+            }
+            this._updateBadge();
+        });
+
+        // Escape to clear
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.values.length) this.clear();
+        });
+    },
+
+    _updateBadge() {
+        if (!this.values.length) {
+            this.badge.style.display = 'none';
+            return;
+        }
+        const sum = this.values.reduce((a, b) => a + b, 0);
+        this.badge.querySelector('.calc-badge-value').textContent = sum.toFixed(2);
+        this.badge.querySelector('.calc-badge-count').textContent = `(${this.values.length} cells)`;
+        this.badge.style.display = 'flex';
+    },
+
+    _clearHighlights() {
+        document.querySelectorAll('.calc-selected').forEach(el => el.classList.remove('calc-selected'));
+    },
+
+    clear() {
+        this.values = [];
+        this.selectedCells = new Set();
+        this._clearHighlights();
+        this._updateBadge();
+    }
+};
+
+// ============================================================
 // Alerts View
 // ============================================================
 
@@ -568,15 +690,22 @@ const AlertsView = {
 
         const iconMap = { critical: '\u{1F534}', warning: '\u{1F7E1}', info: '\u2139\uFE0F' };
 
-        container.innerHTML = alerts.map((a, i) => `
+        container.innerHTML = alerts.map((a, i) => {
+            let linkHref = '/orders';
+            const params = [];
+            if (a.system) params.push('system=' + encodeURIComponent(a.system));
+            if (a.date) params.push('date=' + encodeURIComponent(a.date));
+            if (a.shift) params.push('shift=' + encodeURIComponent(a.shift));
+            if (params.length) linkHref += '?' + params.join('&');
+            return `
             <div class="alert-item ${a.severity} animate-in" style="animation-delay:${i * 30}ms">
                 <span class="alert-icon">${iconMap[a.severity] || '\u2139\uFE0F'}</span>
                 <div>
                     <div class="alert-text">${escapeHtml(a.text)}</div>
-                    <a href="/orders" class="alert-link">View orders \u2192</a>
+                    <a href="${linkHref}" class="alert-link">View orders \u2192</a>
                 </div>
             </div>
-        `).join('');
+        `}).join('');
     }
 };
 
@@ -757,7 +886,7 @@ const SummaryView = {
                 type: 'bar',
                 data: dates.map(date => {
                     const item = data.find(d => d.date === date && d.system === sys);
-                    return item ? Math.round(item.ratio * 100) : 0;
+                    return item ? item.used : 0;
                 }),
                 itemStyle: {
                     color: CHART_THEME.colors[idx % CHART_THEME.colors.length],
@@ -767,7 +896,10 @@ const SummaryView = {
                 label: {
                     show: true,
                     position: 'top',
-                    formatter: '{c}%',
+                    formatter: p => {
+                        const item = data.find(d => d.date === dates[p.dataIndex] && d.system === sys);
+                        return item ? `${item.used}/${item.limit}` : '';
+                    },
                     color: '#a1a1aa',
                     fontSize: 11,
                     fontWeight: 600,
@@ -784,7 +916,9 @@ const SummaryView = {
                     formatter: params => {
                         let html = `<b>${params[0].axisValue}</b><br/>`;
                         params.forEach(p => {
-                            html += `${p.marker} ${p.seriesName}: <b>${p.value}%</b><br/>`;
+                            const item = data.find(d => d.date === dates[p.dataIndex] && d.system === p.seriesName);
+                            const limitStr = item ? `/${item.limit}` : '';
+                            html += `${p.marker} ${p.seriesName}: <b>${p.value}${limitStr}</b><br/>`;
                         });
                         return html;
                     }
@@ -798,10 +932,9 @@ const SummaryView = {
                 xAxis: { type: 'category', data: dateLabels, ...chartAxisStyle() },
                 yAxis: {
                     type: 'value',
-                    name: 'Utilization %',
+                    name: 'Batch Count',
                     nameTextStyle: { color: CHART_THEME.textColorDim, fontSize: 10 },
-                    max: 100,
-                    axisLabel: { formatter: '{value}%', color: CHART_THEME.textColor, fontSize: 11 },
+                    axisLabel: { color: CHART_THEME.textColor, fontSize: 11 },
                     ...chartAxisStyle(),
                     splitLine: { lineStyle: { color: CHART_THEME.splitLineColor } },
                 },
@@ -883,10 +1016,15 @@ const SummaryView = {
 // ============================================================
 
 const DashboardCharts = {
+    heatmapChart: null,
+    shiftHeatmapChart: null,
+    shiftHeatmapData: null,  // store for highlight logic
+    shiftYLabels: null,
+
     async init() {
         await Promise.all([
             this.renderHeatmap(),
-            this.renderDonut(),
+            this.renderShiftHeatmap(),
         ]);
     },
 
@@ -1014,8 +1152,175 @@ const DashboardCharts = {
                 }]
             });
 
+            // Click handler: highlight corresponding shift rows on right heatmap
+            chart.on('click', (params) => {
+                if (!params.data || !params.data.shifts) return;
+                const clickedSystem = systems[params.data.value[1]];
+                const clickedDate = dateLabels[params.data.value[0]];
+                this._highlightShiftRows(clickedSystem, clickedDate);
+            });
+
+            this.heatmapChart = chart;
             window.addEventListener('resize', () => chart.resize());
         } catch (e) { console.error('Heatmap error:', e); }
+    },
+
+    _highlightShiftRows(system, dateLabel) {
+        if (!this.shiftHeatmapChart || !this.shiftYLabels) return;
+        const shifts = ['N', 'D', 'M'];
+        const targetLabels = shifts.map(s => `${system} / ${s}`);
+        const targetYIndices = targetLabels.map(l => this.shiftYLabels.indexOf(l)).filter(i => i >= 0);
+
+        if (targetYIndices.length === 0) return;
+
+        // Find matching data points (by dateLabel on x-axis)
+        const matchingIndices = [];
+        (this.shiftHeatmapData || []).forEach((d, idx) => {
+            if (targetYIndices.includes(d.value[1]) && this._shiftDateLabels && this._shiftDateLabels[d.value[0]] === dateLabel) {
+                matchingIndices.push(idx);
+            }
+        });
+
+        // Dispatch highlight via ECharts
+        this.shiftHeatmapChart.dispatchAction({ type: 'downplay', seriesIndex: 0 });
+        if (matchingIndices.length) {
+            matchingIndices.forEach(idx => {
+                this.shiftHeatmapChart.dispatchAction({
+                    type: 'highlight',
+                    seriesIndex: 0,
+                    dataIndex: idx,
+                });
+            });
+        }
+    },
+
+    async renderShiftHeatmap() {
+        const dom = document.getElementById('chart-heatmap-shift');
+        if (!dom) return;
+        try {
+            const resp = await fetch('/api/heatmap');
+            const data = await resp.json();
+
+            // Build shift-level grid: each system has 3 rows (N, D, M)
+            const allSystems = [...new Set(data.map(d => d.system))];
+            // Reverse for bottom-up rendering
+            const shifts = ['M', 'D', 'N'];
+            const yLabels = [];
+            allSystems.reverse();
+            allSystems.forEach(sys => {
+                shifts.forEach(s => yLabels.push(`${sys} / ${s}`));
+            });
+
+            const dates = [...new Set(data.map(d => d.date))].sort();
+            const dateLabels = dates.map(formatDateLabel);
+
+            const minHeight = Math.max(400, yLabels.length * 32 + 100);
+            dom.style.height = minHeight + 'px';
+            const chart = echarts.init(dom);
+
+            const heatData = [];
+            data.forEach(d => {
+                const x = dates.indexOf(d.date);
+                if (!d.shifts) return;
+                d.shifts.forEach(s => {
+                    const yIdx = yLabels.indexOf(`${d.system} / ${s.shift}`);
+                    if (yIdx < 0) return;
+                    const ratio = s.limit ? s.used / s.limit : 0;
+                    heatData.push({
+                        value: [x, yIdx, ratio],
+                        used: s.used,
+                        limit: s.limit,
+                        system: d.system,
+                        shift: s.shift,
+                    });
+                });
+            });
+
+            // Store for cross-chart interaction
+            this.shiftHeatmapData = heatData;
+            this.shiftYLabels = yLabels;
+            this._shiftDateLabels = dateLabels;
+
+            const t = getChartTheme();
+            chart.setOption({
+                tooltip: {
+                    backgroundColor: t.tooltipBg,
+                    borderColor: t.tooltipBorder,
+                    textStyle: { color: t.tooltipText, fontSize: 12 },
+                    formatter: p => {
+                        const d = p.data;
+                        return `<b>${d.system}</b> — ${d.shift} shift — ${dateLabels[d.value[0]]}<br/>Used: <b>${d.used}</b> / Limit: <b>${d.limit}</b><br/>Ratio: <b>${(d.value[2]*100).toFixed(0)}%</b>`;
+                    }
+                },
+                grid: { left: 140, right: 20, top: 40, bottom: 50 },
+                xAxis: {
+                    type: 'category',
+                    data: dateLabels,
+                    position: 'top',
+                    axisLine: { lineStyle: { color: t.axisLineColor } },
+                    axisLabel: { color: t.textColor, fontSize: 12, fontFamily: t.fontMono },
+                    splitLine: { show: false },
+                    axisTick: { show: false },
+                },
+                yAxis: {
+                    type: 'category',
+                    data: yLabels,
+                    axisLine: { lineStyle: { color: t.axisLineColor } },
+                    axisLabel: {
+                        color: t.textColor,
+                        fontSize: 11,
+                        formatter: val => {
+                            if (val.includes('Total')) return '{bold|' + val + '}';
+                            return val;
+                        },
+                        rich: { bold: { fontSize: 12, fontWeight: 700, color: t.labelColor } }
+                    },
+                    splitLine: { show: false },
+                    axisTick: { show: false },
+                },
+                visualMap: {
+                    min: 0,
+                    max: 1.5,
+                    calculable: false,
+                    orient: 'horizontal',
+                    left: 'center',
+                    bottom: 4,
+                    inRange: { color: ['#e8eaf6', '#90caf9', '#66bb6a', '#fdd835', '#ef5350'] },
+                    text: ['Overloaded', 'Free'],
+                    textStyle: { color: t.textColorDim, fontSize: 12 },
+                    itemWidth: 14,
+                    itemHeight: 120,
+                },
+                series: [{
+                    type: 'heatmap',
+                    data: heatData,
+                    label: {
+                        show: true,
+                        formatter: p => `${p.data.used}/${p.data.limit}`,
+                        color: '#1a1a2e',
+                        fontSize: 11,
+                        fontFamily: t.fontMono,
+                        fontWeight: 500,
+                    },
+                    itemStyle: {
+                        borderColor: t.cardBg,
+                        borderWidth: 2,
+                        borderRadius: 3,
+                    },
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 14,
+                            shadowColor: 'rgba(99,102,241,0.6)',
+                            borderColor: '#6366f1',
+                            borderWidth: 3,
+                        }
+                    }
+                }]
+            });
+
+            this.shiftHeatmapChart = chart;
+            window.addEventListener('resize', () => chart.resize());
+        } catch (e) { console.error('Shift heatmap error:', e); }
     },
 
     async renderDonut() {

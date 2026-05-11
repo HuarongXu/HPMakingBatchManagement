@@ -67,12 +67,13 @@
                 <th onclick="OrdersTable.sort('msu_demand')">MSU <span class="sort-arrow">▲</span></th>
                 <th onclick="OrdersTable.sort('assigned_system')">System <span class="sort-arrow">▲</span></th>
                 <th onclick="OrdersTable.sort('batch_id')">Batch <span class="sort-arrow">▲</span></th>
-                <th>Status</th>
+                <th onclick="OrdersTable.sort('batch_count')">Batch Count <span class="sort-arrow">▲</span></th>
+                <th onclick="OrdersTable.sort('batch_note')">Batch Note <span class="sort-arrow">▲</span></th>
                 <th>⚠</th>
             </tr>
         </thead>
         <tbody id="orders-tbody">
-            <tr><td colspan="12" class="text-muted" style="text-align:center;padding:32px">加载中...</td></tr>
+            <tr><td colspan="13" class="text-muted" style="text-align:center;padding:32px">加载中...</td></tr>
         </tbody>
     </table>
 </div>
@@ -92,6 +93,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     OrdersTable.init();
+    CellCalc.init();
 });
 </script>
 {% endblock %}
