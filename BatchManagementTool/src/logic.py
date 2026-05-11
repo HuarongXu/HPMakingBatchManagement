@@ -1303,11 +1303,11 @@ def _plan_batches_for_group(
 
         plan_orders = None
         plan_target = None
-        # 排除已匹配 MOQ 的订单，它们应独立成批而非被拉入搭批
+        # 允许所有时间窗口内的订单参与搭批候选（包括已匹配 MOQ 的订单），
+        # 以便凑出更高效的整批次目标（如 13.2 = 4.4×3）
         window_pool = [
             order for order in remaining
             if _within_batch_window(primary, order, allow_cross_day)
-            and not _order_fits_standard_moq(order)
         ]
 
         # 优先尝试大目标搭批（降序），再回退到小目标
@@ -1395,11 +1395,19 @@ def _system_supports_target(system: MakingSystem, target_size: float) -> bool:
     if not system.supported_msu:
         return False
     sizes = list(system.supported_msu)
-    if _is_gss12_system(system):
-        sizes = list({*sizes, round(GSS12_MIN_MOQ / 2, 4)})
+    is_gss12 = _is_gss12_system(system)
+    half_moq = round(GSS12_MIN_MOQ / 2, 4)
+    if is_gss12:
+        sizes = list({*sizes, half_moq})
     hard_tol = _hard_tolerance_band(target_size)
     for size in sizes:
         if size <= 0:
+            continue
+        # GSS12 half-MOQ (2.2) is only valid as a single half-batch (multiplier=1).
+        # GSS12 tanks are 4.4 MSU; 2.2 cannot be used as a building block for larger targets.
+        if is_gss12 and abs(size - half_moq) < 1e-9:
+            if _within_tolerance(target_size, size):
+                return True
             continue
         max_multiplier = max(MAX_BATCH_MULTIPLIER, int(math.ceil((target_size + hard_tol) / size)) + 1)
         for multiplier in range(1, max_multiplier + 1):
@@ -1436,10 +1444,16 @@ def _system_score_tuple(
 
     closest = float('inf')
     sizes = list(system.supported_msu)
-    if _is_gss12_system(system):
-        sizes = list({*sizes, round(GSS12_MIN_MOQ / 2, 4)})
+    is_gss12 = _is_gss12_system(system)
+    half_moq = round(GSS12_MIN_MOQ / 2, 4)
+    if is_gss12:
+        sizes = list({*sizes, half_moq})
     for size in sizes:
         if size <= 0:
+            continue
+        # GSS12 half-MOQ: only multiplier=1 (consistent with _system_supports_target)
+        if is_gss12 and abs(size - half_moq) < 1e-9:
+            closest = min(closest, abs(size - target_size))
             continue
         max_multiplier = max(MAX_BATCH_MULTIPLIER, int(math.ceil((target_size + _hard_tolerance_band(target_size)) / size)) + 1)
         for multiplier in range(1, max_multiplier + 1):
