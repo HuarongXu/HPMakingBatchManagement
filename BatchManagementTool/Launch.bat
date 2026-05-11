@@ -98,9 +98,9 @@ if "%~1"=="" (
     echo   Format: YYYYMMDD (e.g. 20260403)
     echo   Press Enter directly to auto-load latest data
     echo.
-    set /p "DATE=  Date: "
+    set /p "TARGET_DATE=  Date: "
 ) else (
-    set "DATE=%~1"
+    set "TARGET_DATE=%~1"
 )
 
 :: ==========================================================
@@ -109,12 +109,12 @@ if "%~1"=="" (
 echo.
 echo   Starting Web Dashboard...
 
-if "%DATE%"=="" (
+if "%TARGET_DATE%"=="" (
     echo   Mode: auto-load latest data
     "%PYTHON_CMD%" src/main.py --web
 ) else (
-    echo   Date: %DATE%
-    "%PYTHON_CMD%" src/main.py --date %DATE% --web
+    echo   Date: %TARGET_DATE%
+    "%PYTHON_CMD%" src/main.py --date %TARGET_DATE% --web
 )
 
 echo.
