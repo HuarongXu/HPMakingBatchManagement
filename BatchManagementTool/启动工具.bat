@@ -1,25 +1,31 @@
 @echo off
-chcp 65001 >nul
+chcp 936 >nul
 title HP Making Batch Management Tool
 
 echo.
-echo  ╔════════════════════════════════════════════════╗
-echo  ║   HP Making Batch Management Tool              ║
-echo  ║   正在启动...                                   ║
-echo  ╚════════════════════════════════════════════════╝
+echo  +================================================+
+echo  :   HP Making Batch Management Tool              :
+echo  :   Starting...                                  :
+echo  +================================================+
 echo.
 
-:: 切换到脚本所在目录
+:: Switch to script directory
 cd /d "%~dp0"
 
 :: ──────────────────────────────────────────────────────
-:: 检测 Python 环境
+:: Detect Python environment
 :: ──────────────────────────────────────────────────────
 set "VENV_PYTHON=%~dp0..\.venv\Scripts\python.exe"
 
+:: Check venv exists AND actually works (not stale from another machine)
 if exist "%VENV_PYTHON%" (
-    set "PYTHON_CMD=%VENV_PYTHON%"
-    goto :check_deps
+    "%VENV_PYTHON%" -c "print()" >nul 2>&1
+    if not errorlevel 1 (
+        set "PYTHON_CMD=%VENV_PYTHON%"
+        goto :check_deps
+    ) else (
+        echo   [!] Venv Python invalid, checking system Python...
+    )
 )
 
 where python >nul 2>&1
@@ -28,22 +34,28 @@ if not errorlevel 1 (
     goto :check_deps
 )
 
-echo   × 未检测到 Python 环境
-echo   请先运行 "install.bat" 进行安装
+where py >nul 2>&1
+if not errorlevel 1 (
+    set "PYTHON_CMD=py -3"
+    goto :check_deps
+)
+
+echo   [X] Python not found
+echo   Please run "install.bat" first
 echo.
 pause
 exit /b 1
 
 :: ──────────────────────────────────────────────────────
-:: 检查依赖是否已安装
+:: Check dependencies
 :: ──────────────────────────────────────────────────────
 :check_deps
 "%PYTHON_CMD%" -c "import flask, pandas" >nul 2>&1
 if errorlevel 1 (
-    echo   正在安装缺少的依赖...
+    echo   Installing missing dependencies...
     "%PYTHON_CMD%" -m pip install -r "%~dp0requirements.txt" --quiet
     if errorlevel 1 (
-        echo   × 依赖安装失败，请先运行 "install.bat"
+        echo   [X] Dependency install failed, please run "install.bat" first
         pause
         exit /b 1
     )
@@ -53,26 +65,26 @@ if errorlevel 1 (
 :: 获取日期参数
 :: ──────────────────────────────────────────────────────
 if "%~1"=="" (
-    echo   请输入要分析的数据日期:
-    echo   格式: YYYYMMDD (例如: 20260403^)
-    echo   直接按回车将自动加载最新数据
+    echo   Enter the data date to analyze:
+    echo   Format: YYYYMMDD (e.g. 20260403^)
+    echo   Press Enter directly to auto-load latest data
     echo.
-    set /p "DATE=  日期: "
+    set /p "DATE=  Date: "
 ) else (
     set "DATE=%~1"
 )
 
 :: ──────────────────────────────────────────────────────
-:: 启动 Web Dashboard
+:: Start Web Dashboard
 :: ──────────────────────────────────────────────────────
 echo.
-echo   正在启动 Web Dashboard...
+echo   Starting Web Dashboard...
 
 if "%DATE%"=="" (
-    echo   模式: 自动加载最新数据
+    echo   Mode: auto-load latest data
     "%PYTHON_CMD%" src/main.py --web
 ) else (
-    echo   日期: %DATE%
+    echo   Date: %DATE%
     "%PYTHON_CMD%" src/main.py --date %DATE% --web
 )
 

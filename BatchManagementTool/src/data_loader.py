@@ -224,14 +224,29 @@ def _mirror_to_csv(source_path: Path) -> None:
         if suffix == '.csv':
             shutil.copy2(source_path, target_path)
         elif suffix in {'.xls', '.xlsx'}:
-            engine = 'xlrd' if suffix == '.xls' else 'openpyxl'
-            df = pd.read_excel(source_path, engine=engine)
+            try:
+                engine = 'xlrd' if suffix == '.xls' else 'openpyxl'
+                df = pd.read_excel(source_path, engine=engine)
+            except Exception:
+                # SAP often exports .xls as UTF-16 text; fall back to text read
+                encoding = _detect_text_encoding(source_path)
+                lines = source_path.read_text(encoding=encoding, errors='ignore').splitlines()
+                delimiter = _infer_delimiter(lines[0]) if lines else '\t'
+                # Find first non-empty line as header
+                header_idx = 0
+                for i, ln in enumerate(lines):
+                    if ln.strip():
+                        header_idx = i
+                        break
+                buf = io.StringIO('\n'.join(lines[header_idx:]))
+                df = pd.read_csv(buf, sep=delimiter, engine='python')
             df.to_csv(target_path, index=False)
         else:
             return
         print(f"已同步 CSV 备份: {target_path.name}")
     except Exception as exc:
         print(f"警告: 无法为 {source_path.name} 生成 CSV 备份 ({exc})")
+        import traceback; traceback.print_exc()
 
 
 def _export_dataframe_snapshot(df: pd.DataFrame, source_path: Path) -> None:
@@ -304,7 +319,12 @@ def _clean_zcprs(df: pd.DataFrame) -> pd.DataFrame:
         cleaned['Mrp Element'] = cleaned['Mrp Element'].fillna('').astype(str).str.strip()
 
     def _valid_date(series: pd.Series) -> pd.Series:
-        return series.fillna('').astype(str).str.contains(r"\d{1,2}/\d{1,2}/\d{4}")
+        """Accept any string that looks like a date (multiple formats)."""
+        s = series.fillna('').astype(str).str.strip()
+        return s.str.contains(
+            r'\d{1,4}[/\-.年]\d{1,2}[/\-.月]\d{1,4}',
+            na=False,
+        )
 
     cleaned = cleaned[_valid_date(cleaned['StartDate']) & _valid_date(cleaned['EndDate'])]
     cleaned.reset_index(drop=True, inplace=True)

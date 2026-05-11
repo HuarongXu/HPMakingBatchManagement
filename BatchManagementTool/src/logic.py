@@ -87,13 +87,39 @@ def _calculate_shift(start_time: time) -> str:
         return 'M'  # M班: 16:00 - 23:59
     return 'N'  # N班: 00:00 - 07:59
 
+def _parse_dates_flexible(date_str: pd.Series) -> pd.Series:
+    """Try multiple date formats and return the first that works per value."""
+    formats = [
+        '%m/%d/%Y',   # 5/11/2026   (US)
+        '%d/%m/%Y',   # 11/05/2026  (EU)
+        '%Y/%m/%d',   # 2026/05/11
+        '%Y-%m-%d',   # 2026-05-11  (ISO)
+        '%d-%m-%Y',   # 11-05-2026
+        '%m-%d-%Y',   # 05-11-2026
+        '%Y.%m.%d',   # 2026.05.11
+        '%d.%m.%Y',   # 11.05.2026
+        '%m.%d.%Y',   # 05.11.2026
+    ]
+    result = pd.to_datetime(date_str, errors='coerce')  # pandas auto-detect
+    if result.notna().all():
+        return result
+    # If auto-detect has gaps, try explicit formats
+    for fmt in formats:
+        parsed = pd.to_datetime(date_str, format=fmt, errors='coerce')
+        if parsed.notna().sum() > result.notna().sum():
+            result = parsed
+        if result.notna().all():
+            break
+    return result
+
+
 def _combine_date_time_columns(date_series: pd.Series, time_series: pd.Series) -> pd.Series:
-    """合并日期和时间列，支持 24:00:00 跨日写法。"""
+    """合并日期和时间列，支持 24:00:00 跨日写法，自动识别多种日期格式。"""
     date_str = date_series.astype(str).str.strip()
     time_str = time_series.astype(str).str.strip()
 
     mask_24 = time_str.str.startswith('24:', na=False)
-    normalized_dates = pd.to_datetime(date_str, format='%m/%d/%Y', errors='coerce')
+    normalized_dates = _parse_dates_flexible(date_str)
     normalized_time = time_str.copy()
     if mask_24.any():
         normalized_time.loc[mask_24] = (
