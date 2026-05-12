@@ -1,12 +1,12 @@
 @echo off
-chcp 65001 >nul
-title HP Making Batch Management Tool - 升级
+chcp 936 >nul
+title HP Making Batch Management Tool - Upgrade
 
 echo.
-echo  ╔════════════════════════════════════════════════╗
-echo  ║   HP Making Batch Management Tool              ║
-echo  ║   升级程序                                      ║
-echo  ╚════════════════════════════════════════════════╝
+echo  +================================================+
+echo  :   HP Making Batch Management Tool              :
+echo  :   Upgrade                                      :
+echo  +================================================+
 echo.
 
 :: 切换到脚本所在目录
@@ -28,7 +28,7 @@ if not errorlevel 1 (
     goto :check_git
 )
 
-echo   × 未检测到 Python 环境，请先运行 "install.bat"
+echo   x Wei jiance dao Python, qing xian yunxing "install.bat"
 pause
 exit /b 1
 
@@ -56,42 +56,42 @@ if "%USE_GIT%"=="1" (
 :: 方式1: 使用 Git 拉取更新
 :: ──────────────────────────────────────────────────────
 :upgrade_git
-echo   检测到 Git 仓库，使用 Git 拉取最新版本...
+echo   Detected Git repo, pulling latest version...
 echo.
 
 cd /d "%PROJECT_ROOT%"
 
-echo [1/3] 正在拉取最新代码...
+echo [1/3] Pulling latest code...
 git pull origin main
 if errorlevel 1 (
     echo.
-    echo   Git 拉取失败，尝试下载方式...
+    echo   Git pull failed, trying download method...
     goto :upgrade_download
 )
-echo   √ 代码已更新到最新版本
+echo   [OK] Code updated to latest version
 
 echo.
-echo [2/3] 正在更新依赖...
+echo [2/3] Updating dependencies...
 cd /d "%~dp0"
 "%PYTHON_CMD%" -m pip install -r requirements.txt --quiet
-echo   √ 依赖已更新
+echo   [OK] Dependencies updated
 
 echo.
-echo [3/3] 升级完成!
+echo [3/3] Upgrade complete!
 goto :done
 
 :: ──────────────────────────────────────────────────────
 :: 方式2: 下载 ZIP 更新
 :: ──────────────────────────────────────────────────────
 :upgrade_download
-echo   使用下载方式更新...
+echo   Using download method...
 echo.
 
 set "REPO_URL=https://github.com/HuarongXu/HPMakingBatchManagement/archive/refs/heads/main.zip"
 set "DOWNLOAD_FILE=%TEMP%\hp_batch_update.zip"
 set "EXTRACT_DIR=%TEMP%\hp_batch_update"
 
-echo [1/5] 正在下载最新版本...
+echo [1/5] Downloading latest version...
 
 :: 尝试使用 token (如果存在配置文件)
 set "TOKEN_FILE=%~dp0..\.github_token"
@@ -107,25 +107,25 @@ if defined GITHUB_TOKEN (
 )
 if errorlevel 1 (
     echo.
-    echo   × 下载失败！
+    echo   x Download failed!
     echo.
-    echo   可能的原因:
-    echo     1. 没有网络连接
-    echo     2. 仓库是私有的，需要配置 GitHub Token
+    echo   Possible reasons:
+    echo     1. No internet connection
+    echo     2. Private repo, need GitHub Token
     echo.
-    echo   配置 Token 方法:
-    echo     在项目根目录创建 .github_token 文件
-    echo     文件内容为你的 GitHub Personal Access Token
+    echo   To configure Token:
+    echo     Create .github_token file in project root
+    echo     Content: your GitHub Personal Access Token
     echo.
     pause
     exit /b 1
 )
 
-echo [2/5] 正在解压更新文件...
+echo [2/5] Extracting update files...
 if exist "%EXTRACT_DIR%" rmdir /s /q "%EXTRACT_DIR%"
 powershell -Command "Expand-Archive -Path '%DOWNLOAD_FILE%' -DestinationPath '%EXTRACT_DIR%' -Force"
 
-echo [3/5] 正在备份用户数据...
+echo [3/5] Backing up user data...
 set "BACKUP_DIR=%~dp0..\_backup_%date:~0,4%%date:~5,2%%date:~8,2%"
 
 :: 备份数据文件
@@ -138,9 +138,9 @@ if exist "%PROJECT_ROOT%\1.DataBase" (
     if not exist "%BACKUP_DIR%\1.DataBase" mkdir "%BACKUP_DIR%\1.DataBase"
     xcopy "%PROJECT_ROOT%\1.DataBase\*.*" "%BACKUP_DIR%\1.DataBase\" /s /q /y >nul 2>&1
 )
-echo   √ 用户数据已备份到 _backup 文件夹
+echo   [OK] User data backed up to _backup folder
 
-echo [4/5] 正在更新程序文件...
+echo [4/5] Updating program files...
 :: 找到解压后的目录（通常是 HPMakingBatchManagement-main）
 setlocal enabledelayedexpansion
 set "UPDATE_SOURCE="
@@ -149,7 +149,7 @@ for /d %%D in ("%EXTRACT_DIR%\*") do (
 )
 
 if "!UPDATE_SOURCE!"=="" (
-    echo   × 解压后未找到文件
+    echo   x No files found after extraction
     endlocal
     pause
     exit /b 1
@@ -181,11 +181,11 @@ if exist "!UPDATE_SOURCE!\scripts" (
 )
 endlocal
 
-echo   √ 程序文件已更新
+echo   [OK] Program files updated
 
-echo [5/5] 正在更新依赖...
+echo [5/5] Updating dependencies...
 "%PYTHON_CMD%" -m pip install -r "%~dp0requirements.txt" --quiet
-echo   √ 依赖已更新
+echo   [OK] Dependencies updated
 
 :: 清理临时文件
 del /f /q "%DOWNLOAD_FILE%" >nul 2>&1
@@ -196,13 +196,13 @@ rmdir /s /q "%EXTRACT_DIR%" >nul 2>&1
 :: ──────────────────────────────────────────────────────
 :done
 echo.
-echo  ╔════════════════════════════════════════════════╗
-echo  ║             升级成功！                          ║
-echo  ╠════════════════════════════════════════════════╣
-echo  ║                                                ║
-echo  ║  您的数据文件已自动备份                        ║
-echo  ║  请双击 "启动工具.bat" 使用新版本              ║
-echo  ║                                                ║
-echo  ╚════════════════════════════════════════════════╝
+echo  +================================================+
+echo  :           Upgrade Successful!                   :
+echo  +------------------------------------------------+
+echo  :                                                :
+echo  :  Your data files have been backed up           :
+echo  :  Please run "Launch.bat" to use new version    :
+echo  :                                                :
+echo  +================================================+
 echo.
 pause
