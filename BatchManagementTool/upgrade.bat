@@ -9,12 +9,12 @@ echo  :   Upgrade                                      :
 echo  +================================================+
 echo.
 
-:: 切换到脚本所在目录
+:: Switch to script directory
 cd /d "%~dp0"
 
-:: ──────────────────────────────────────────────────────
-:: 检测 Python 环境
-:: ──────────────────────────────────────────────────────
+:: --------------------------------------------------------
+:: Detect Python
+:: --------------------------------------------------------
 set "VENV_PYTHON=%~dp0..\.venv\Scripts\python.exe"
 
 if exist "%VENV_PYTHON%" (
@@ -28,13 +28,13 @@ if not errorlevel 1 (
     goto :check_git
 )
 
-echo   x Wei jiance dao Python, qing xian yunxing "install.bat"
+echo   x Python not found. Please run "install.bat" first.
 pause
 exit /b 1
 
-:: ──────────────────────────────────────────────────────
-:: 检查 Git
-:: ──────────────────────────────────────────────────────
+:: --------------------------------------------------------
+:: Check Git
+:: --------------------------------------------------------
 :check_git
 set "USE_GIT=0"
 set "PROJECT_ROOT=%~dp0.."
@@ -52,9 +52,9 @@ if "%USE_GIT%"=="1" (
     goto :upgrade_download
 )
 
-:: ──────────────────────────────────────────────────────
-:: 方式1: 使用 Git 拉取更新
-:: ──────────────────────────────────────────────────────
+:: --------------------------------------------------------
+:: Method 1: Git pull
+:: --------------------------------------------------------
 :upgrade_git
 echo   Detected Git repo, pulling latest version...
 echo.
@@ -80,9 +80,9 @@ echo.
 echo [3/3] Upgrade complete!
 goto :done
 
-:: ──────────────────────────────────────────────────────
-:: 方式2: 下载 ZIP 更新
-:: ──────────────────────────────────────────────────────
+:: --------------------------------------------------------
+:: Method 2: Download ZIP
+:: --------------------------------------------------------
 :upgrade_download
 echo   Using download method...
 echo.
@@ -93,7 +93,7 @@ set "EXTRACT_DIR=%TEMP%\hp_batch_update"
 
 echo [1/5] Downloading latest version...
 
-:: 尝试使用 token (如果存在配置文件)
+:: Try using token (if config file exists)
 set "TOKEN_FILE=%~dp0..\.github_token"
 set "GITHUB_TOKEN="
 if exist "%TOKEN_FILE%" (
@@ -128,12 +128,12 @@ powershell -Command "Expand-Archive -Path '%DOWNLOAD_FILE%' -DestinationPath '%E
 echo [3/5] Backing up user data...
 set "BACKUP_DIR=%~dp0..\_backup_%date:~0,4%%date:~5,2%%date:~8,2%"
 
-:: 备份数据文件
+:: Backup data files
 if exist "%~dp0data" (
     if not exist "%BACKUP_DIR%\data" mkdir "%BACKUP_DIR%\data"
     xcopy "%~dp0data\*.*" "%BACKUP_DIR%\data\" /s /q /y >nul 2>&1
 )
-:: 备份数据库文件
+:: Backup database files
 if exist "%PROJECT_ROOT%\1.DataBase" (
     if not exist "%BACKUP_DIR%\1.DataBase" mkdir "%BACKUP_DIR%\1.DataBase"
     xcopy "%PROJECT_ROOT%\1.DataBase\*.*" "%BACKUP_DIR%\1.DataBase\" /s /q /y >nul 2>&1
@@ -141,7 +141,7 @@ if exist "%PROJECT_ROOT%\1.DataBase" (
 echo   [OK] User data backed up to _backup folder
 
 echo [4/5] Updating program files...
-:: 找到解压后的目录（通常是 HPMakingBatchManagement-main）
+:: Find extracted directory (usually HPMakingBatchManagement-main)
 setlocal enabledelayedexpansion
 set "UPDATE_SOURCE="
 for /d %%D in ("%EXTRACT_DIR%\*") do (
@@ -155,7 +155,7 @@ if "!UPDATE_SOURCE!"=="" (
     exit /b 1
 )
 
-:: 更新 BatchManagementTool 下的源代码文件（保留用户数据）
+:: Update source code files (preserve user data)
 if exist "!UPDATE_SOURCE!\BatchManagementTool\src" (
     xcopy "!UPDATE_SOURCE!\BatchManagementTool\src\*.*" "%~dp0src\" /s /q /y >nul 2>&1
 )
@@ -169,12 +169,12 @@ if exist "!UPDATE_SOURCE!\BatchManagementTool\requirements.txt" (
     copy /y "!UPDATE_SOURCE!\BatchManagementTool\requirements.txt" "%~dp0requirements.txt" >nul 2>&1
 )
 
-:: 更新脚本文件
+:: Update script files
 for %%F in ("!UPDATE_SOURCE!\BatchManagementTool\*.bat") do (
     copy /y "%%F" "%~dp0" >nul 2>&1
 )
 
-:: 更新根目录文件
+:: Update root directory files
 if exist "!UPDATE_SOURCE!\scripts" (
     if not exist "%PROJECT_ROOT%\scripts" mkdir "%PROJECT_ROOT%\scripts"
     xcopy "!UPDATE_SOURCE!\scripts\*.*" "%PROJECT_ROOT%\scripts\" /s /q /y >nul 2>&1
@@ -187,13 +187,13 @@ echo [5/5] Updating dependencies...
 "%PYTHON_CMD%" -m pip install -r "%~dp0requirements.txt" --quiet
 echo   [OK] Dependencies updated
 
-:: 清理临时文件
+:: Clean up temp files
 del /f /q "%DOWNLOAD_FILE%" >nul 2>&1
 rmdir /s /q "%EXTRACT_DIR%" >nul 2>&1
 
-:: ──────────────────────────────────────────────────────
-:: 完成
-:: ──────────────────────────────────────────────────────
+:: --------------------------------------------------------
+:: Done
+:: --------------------------------------------------------
 :done
 echo.
 echo  +================================================+
