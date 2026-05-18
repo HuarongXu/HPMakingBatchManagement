@@ -19,8 +19,8 @@ from models import ProductionOrder, MakingSystem, Batch
 BATCH_TOLERANCE = 0.05
 MAX_BATCH_MULTIPLIER = 3
 # Shift-based batching window: number of forward shifts allowed
-SHAMPOO_MAX_SHIFTS = 2       # shampoo: max 2 shifts forward, same day only
-CONDITIONER_MAX_SHIFTS = 3   # tube conditioner (D/E/K): max 3 shifts forward, can cross day
+SHAMPOO_MAX_SHIFTS = 1       # shampoo: current + 1 next shift (e.g. 20D+20M), same day only
+CONDITIONER_MAX_SHIFTS = 2   # tube conditioner (D/E/K): current + 2 next shifts (e.g. 20D+20M+21N), can cross day
 
 SMALL_ORDER_THRESHOLD = 3.0
 

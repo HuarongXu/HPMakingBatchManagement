@@ -142,34 +142,63 @@ $$
 
 实现位置见 [BatchManagementTool/src/logic.py](BatchManagementTool/src/logic.py#L57-L63)。
 
-## 6.2 搭批窗口
+## 6.2 搭批窗口（基于班次距离）
 
-当前窗口属于**规则驱动窗口**：
+当前窗口属于**班次距离驱动**，不再使用小时数：
 
-- Shampoo 默认 16 小时
-- Conditioner 默认 24 小时
-- 特定产线 `HPHFPACK` 强制 24 小时
+| 产品类型 | 窗口规则 | 示例（主订单在 20D） | 跨日 |
+|----------|----------|----------------------|------|
+| Shampoo | 本班 + 下1个班次 (dist ≤ 1) | 20D + 20M | 不允许 |
+| Tube Conditioner (D/E/K线) | 本班 + 下2个班次 (dist ≤ 2) | 20D + 20M + 21N | 允许 |
 
-实现位置见 [BatchManagementTool/src/logic.py](BatchManagementTool/src/logic.py#L80-L101)。
+**班次距离计算**：N=0, D=1, M=2（同日内），跨日每天+3。
+
+示例：
+- 20D → 20M：dist = 2-1 = 1 ✓ (shampoo 允许)
+- 20N → 20M：dist = 2-0 = 2 ✗ (shampoo 不允许，超过1)
+- 20D → 21N：dist = (0+3)-1 = 2 ✓ (conditioner 允许)
+- 20D → 21D：dist = (1+3)-1 = 3 ✗ (conditioner 不允许，超过2)
+
+实现位置见 `SHAMPOO_MAX_SHIFTS=1`, `CONDITIONER_MAX_SHIFTS=2`, `_shift_distance()`, `_within_batch_window()`。
 
 ## 6.3 允许的目标规格
 
 当前目标规格由 `_get_allowed_msu_sizes()` 生成：
 
-- Shampoo：以 2.2 为基础的多倍数目标
-- Conditioner：以 2.2 为基础的多倍数目标，额外允许 1.1
+**Shampoo**（按优先级排序）：
+1. GSS1+2 兼容（4.4的倍数）：13.2, 8.8, 4.4
+2. GSS3-only（奇数个2.2）：11.0, 6.6, 2.2
 
-这使得工具可以支持：
+排序原则：优先尝试能在 GSS1+2 上运行的目标，最大化大容量系统利用。
 
-- 2.2
-- 4.4
-- 6.6
-- 8.8
-- 11.0
-- 13.2
-- Conditioner 另有 1.1
+**Conditioner**：1.1 的所有倍数（13.2, 12.1, 11.0, ... 2.2, 1.1）
 
-实现位置见 [BatchManagementTool/src/logic.py](BatchManagementTool/src/logic.py#L911-L924)。
+## 6.4 跨产线搭批规则
+
+搭批要求同 WIP Code + 同产品类型，但允许特定产线组合跨线搭批：
+
+**Shampoo 允许的产线配对**（pairwise）：
+
+| 线1 | 线2 | 允许 |
+|------|------|------|
+| HPHCPACK | HPHKPACK | ✓ |
+| HPHCPACK | HPHRPACK | ✓ |
+| HPHCPACK | HPHFPACK | ✓ |
+| HPHFPACK | HPHRPACK | ✓ |
+| HPHKPACK | HPHRPACK | ✗ |
+| HPHKPACK | HPHFPACK | ✗ |
+
+**Conditioner 允许的产线配对**：
+
+| 线1 | 线2 | 允许 |
+|------|------|------|
+| HPHDPACK | HPHEPACK | ✓ |
+| HPHDPACK | HPHKPACK | ✓ |
+| HPHEPACK | HPHKPACK | ✓ |
+
+同一产线的订单始终允许搭批。
+
+实现位置见 `ALLOWED_SHAMPOO_PAIRS`, `ALLOWED_CONDITIONER_PAIRS`, `_combination_respects_work_center()`。
 
 ---
 
@@ -349,7 +378,7 @@ $$
 当前评分元组为：
 
 $$
-Score = (overflow, gss12\_small, priority, usage, closest, name)
+Score = (overflow, high\_load, priority, usage, closest, name)
 $$
 
 排序规则是**从左到右逐项比较，取最小值**。
@@ -358,14 +387,32 @@ $$
 
 | 字段 | 含义 | 越小越好 |
 |---|---|---|
-| `overflow` | 是否会超该日期该班次上限 | 是 |
-| `gss12_small` | GSS1+GSS2 做小批的惩罚 | 是 |
-| `priority` | 系统优先级（GSS1+GSS2 < GSS3 < GSS4） | 是 |
+| `overflow` | 分配后是否会超该日期该班次上限 | 是 |
+| `high_load` | 分配后利用率是否 ≥ 75% (高负载分流) | 是 |
+| `priority` | 系统优先级：GSS1+GSS2=0, GSS3=1, GSS4=2 | 是 |
 | `usage` | 该日期该班次已占用批次数 | 是 |
 | `closest` | 系统能力与目标规格的接近程度 | 是 |
 | `name` | 最终稳定排序字段 | 是 |
 
-### 9.3 结论
+**核心分配原则**：先填满大容量系统（GSS1+2），再用小容量系统（GSS3）。75% 高负载阈值避免单一系统过度集中。
+
+### 9.3 GSS1+2 特殊约束
+
+**GSS1+2 生产 2.2 MSU (half-batch) 的唯一条件**：
+
+> 订单的 WIP Code 必须在 `12t_to_6t_conversion_list.xlsx` 中。
+
+- target ≥ 4.4 MSU：任何 shampoo 订单都可以在 GSS1+2 上生产
+- target < 4.4 MSU (即 2.2 half-batch)：仅限 conversion list 中的订单
+- 不在 conversion list 中的 2.2 MSU 小批订单只能去 GSS3
+
+### 9.4 溢出再平衡 (Overflow Rebalance)
+
+当 GSS3 某班次超限时，仅将 **conversion list 中的** 2.2 MSU 批次移到 GSS1+2（前提是 GSS1+2 有剩余容量）。
+
+**不会**移动非 conversion list 的订单 — 即使 GSS3 溢出，这是真实产能瓶颈告警。
+
+### 9.5 结论
 
 因此当前工具不是“全局统一打分器”，而是：
 
@@ -521,35 +568,21 @@ $$
 
 仍然在硬边界内，可接受。
 
-### 案例 E：靠评分取胜而不是靠规则直接决定
+### 案例 E：系统选择与 GSS1+2 约束
 
 订单：`2998979332`
 
-对于 `Target = 2.2` 的 shampoo 批次，两个系统都合法：
+对于 `Target = 2.2` 的 shampoo 批次：
 
-- GSS1 + GSS2：
-
-$$
-(0,1,0,0,2.2)
-$$
-
-- GSS3：
-
-$$
-(0,0,1,0,0.0)
-$$
-
-因为排序逐项比较：
-
-- 第一位 `overflow` 相同；
-- 第二位 `gss12_small`：GSS3 更优；
-
-所以最终由 **GSS3 胜出**。
+- 若订单 WIP **不在** conversion list → GSS1+2 被规则排除，只有 GSS3 合法
+- 若订单 WIP **在** conversion list → 两者对比：
+  - GSS1+GSS2: $(0, 0, 0, usage, 0.0, \text{name})$ — priority=0
+  - GSS3: $(0, 0, 1, usage, 0.0, \text{name})$ — priority=1
+  - GSS1+2 priority 更优，优先选择
 
 这说明：
 
-- 当前工具的“打分”主要用于**系统选择**；
-- 不是用于全局决定所有订单怎样组合。
+- 当前工具的“打分”主要用于**系统选择**；- GSS1+2 的 half-batch 约束通过前置规则过滤实现，不是通过打分惩罚；- 不是用于全局决定所有订单怎样组合。
 
 ---
 
@@ -663,4 +696,16 @@ Web Dashboard 基于 Flask 构建，前端使用原生 JavaScript + ECharts 图�
 
 ---
 
-> 当前文档基于 2026-05-11 代码版本整理，覆盖双层容差（含 4.4 硬容差放宽至 0.50）、日期班次容量、多订单搭批组合、大目标优先搭批策略、二次合并效率优化（支持减少物理批次的合并）、真实批次汇总、单单备注策略与可解释决策输出。修复 `batch_count` 小数问题（恢复使用 `physical_batches` 整数计算，多订单搭批按整除+余数分配）。修复 GSS12 half-MOQ 仅支持单批次限制。Web Dashboard 交互式仪表盘（总览 / 订单明细 / 汇总视图 / 告警中心），支持搜索、筛选、排序、导出、深浅主题切换。新增双热力图联动（点击 by Day 热力图高亮 by Shift 对应班次）、告警跳转自动筛选、Batch Count/Batch Note 列、单元格计算器 (Ctrl+Click 求和)。一键安装 / 启动 / 升级脚本，面向零基础用户。
+> 当前文档基于 2026-05-18 代码版本整理。
+>
+> **本次更新要点**：
+> - 搭批窗口改为班次距离：Shampoo dist≤1（本班+下1班，不跨日）；Tube Conditioner dist≤2（本班+下2班，可跨日）
+> - 系统评分改为 6 元组：(overflow, high_load, priority, usage, closest, name)，移除旧的 gss12_small 惩罚
+> - GSS1+2 优先级=0（最高），75% 高负载阈值触发分流
+> - GSS1+2 做 2.2 MSU 仅限 12t_to_6t conversion list 中的订单
+> - 溢出再平衡仅移动 conversion list 批次
+> - 跨产线搭批规则：Shampoo C/K, C/R, C/F, F/R；Conditioner D/E, D/K, E/K
+> - Shampoo allowed sizes 排序优先 4.4 倍数（GSS1+2兼容），再 GSS3-only
+> - Heatmap 按 Shift/System 分组；Batch Note 全文显示；告警点击筛选
+>
+> 覆盖双层容差（含 4.4 硬容差放宽至 0.50）、日期班次容量、多订单搭批组合、大目标优先搭批策略、二次合并效率优化（支持减少物理批次的合并）、真实批次汇总、单单备注策略与可解释决策输出。Web Dashboard 交互式仪表盘，一键安装 / 启动 / 升级脚本。
