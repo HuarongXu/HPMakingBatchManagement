@@ -407,6 +407,7 @@ const OrdersTable = {
                 <td class="col-mono">${highlightText(o.order_number, q)}</td>
                 <td>${highlightText(o.material, q)}</td>
                 <td title="${escapeHtml(o.material_description)}">${highlightText((o.material_description || '').substring(0, 20), q)}</td>
+                <td class="col-mono">${highlightText(o.wip_code || '', q)}</td>
                 <td>${o.work_center}</td>
                 <td>${o.shift}</td>
                 <td class="col-mono">${o.start || ''}</td>
