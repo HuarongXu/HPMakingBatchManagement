@@ -88,6 +88,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (a.system) params.push('system=' + encodeURIComponent(a.system));
                 if (a.date) params.push('date=' + encodeURIComponent(a.date));
                 if (a.shift) params.push('shift=' + encodeURIComponent(a.shift));
+                if (!a.system && !a.date && !a.shift && a.text) {
+                    params.push('alert=' + encodeURIComponent(a.text));
+                }
                 if (params.length) linkHref += '?' + params.join('&');
                 return `
                 <div class="alert-item ${a.severity} animate-in" style="animation-delay:${300 + i * 30}ms">

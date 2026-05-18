@@ -18,16 +18,28 @@ from models import ProductionOrder, MakingSystem, Batch
 
 BATCH_TOLERANCE = 0.05
 MAX_BATCH_MULTIPLIER = 3
-CATEGORY_WINDOW_HOURS = {
-    'shampoo': 16,
-    'conditioner': 24,
-}
-WORKCENTER_WINDOW_HOURS = {
-    'HPHFPACK': 24,
-}
+# Shift-based batching window: number of forward shifts allowed
+SHAMPOO_MAX_SHIFTS = 2       # shampoo: max 2 shifts forward, same day only
+CONDITIONER_MAX_SHIFTS = 3   # tube conditioner (D/E/K): max 3 shifts forward, can cross day
+
 SMALL_ORDER_THRESHOLD = 3.0
-ALLOWED_CONDITIONER_LINES = {'HPHDPACK', 'HPHEPACK'}
-ALLOWED_SHAMPOO_MIX_LINES = {'HPHCPACK', 'HPHFPACK', 'HPHKPACK'}
+
+# Cross-line pairing rules (pairwise allowed combinations)
+# Shampoo: C can pair with K, R, F; F can pair with R (but K/R, K/F cannot pair)
+ALLOWED_SHAMPOO_PAIRS = {
+    frozenset({'HPHCPACK', 'HPHKPACK'}),
+    frozenset({'HPHCPACK', 'HPHRPACK'}),
+    frozenset({'HPHCPACK', 'HPHFPACK'}),
+    frozenset({'HPHFPACK', 'HPHRPACK'}),
+}
+# Conditioner: D/E/K can all pair with each other
+ALLOWED_CONDITIONER_PAIRS = {
+    frozenset({'HPHDPACK', 'HPHEPACK'}),
+    frozenset({'HPHDPACK', 'HPHKPACK'}),
+    frozenset({'HPHEPACK', 'HPHKPACK'}),
+}
+# Lines that indicate tube conditioner (3-shift window)
+TUBE_CONDITIONER_LINES = {'HPHDPACK', 'HPHEPACK', 'HPHKPACK'}
 GSS12_MIN_MOQ = 4.4
 GSS12_HALF_MOQ = GSS12_MIN_MOQ / 2
 ENABLE_SECOND_PASS_MERGE = True
@@ -57,11 +69,16 @@ def _is_gss12_system(system: MakingSystem) -> bool:
 
 
 def _system_allows_target_for_orders(system: MakingSystem, target_size: float, orders: List[ProductionOrder]) -> bool:
+    """判断系统是否允许该目标尺寸。
+    GSS1+2 可以生产 4.4 及其倍数（任何订单）；
+    GSS1+2 生产 2.2 MSU (half-batch) 仅限 WIP Code 在 12t_to_6t list 中的订单。
+    """
     if not _is_gss12_system(system):
         return True
     tol = _tolerance_band(GSS12_MIN_MOQ)
     if target_size >= GSS12_MIN_MOQ - tol:
         return True
+    # target < 4.4: half-batch, 需要所有订单都在 conversion list 中
     return all(order.allow_gss12_reduced_moq for order in orders)
 
 
@@ -132,27 +149,53 @@ def _combine_date_time_columns(date_series: pd.Series, time_series: pd.Series) -
     return normalized_dates + time_delta
 
 
-def _get_window_hours(order: Optional[ProductionOrder]) -> int:
-    """根据产品类型或产线返回搭批窗口大小（小时）。"""
-    if order:
-        work_center = (order.work_center or '').strip().upper()
-        if work_center in WORKCENTER_WINDOW_HOURS:
-            return WORKCENTER_WINDOW_HOURS[work_center]
-        key = (order.product_category or '').lower()
-    else:
-        key = ''
-    return CATEGORY_WINDOW_HOURS.get(key, CATEGORY_WINDOW_HOURS['shampoo'])
+# Shift ordering for distance calculation
+_SHIFT_INDEX = {'N': 0, 'D': 1, 'M': 2}
+
+
+def _shift_distance(primary_shift: str, primary_date, candidate_shift: str, candidate_date) -> int:
+    """Calculate how many shifts forward candidate is from primary.
+    Same shift same day = 0, next shift same day = 1, etc."""
+    days_diff = (candidate_date - primary_date).days
+    p_idx = _SHIFT_INDEX.get(primary_shift, 0)
+    c_idx = _SHIFT_INDEX.get(candidate_shift, 0) + days_diff * 3
+    return c_idx - p_idx
+
+
+def _get_max_shift_window(order: Optional[ProductionOrder]) -> int:
+    """根据产品类型返回搭批窗口（班次数）。"""
+    if not order:
+        return SHAMPOO_MAX_SHIFTS
+    category = (order.product_category or '').lower()
+    work_center = (order.work_center or '').strip().upper()
+    if category == 'conditioner' and work_center in TUBE_CONDITIONER_LINES:
+        return CONDITIONER_MAX_SHIFTS
+    return SHAMPOO_MAX_SHIFTS
 
 
 def _within_batch_window(primary: ProductionOrder, candidate: ProductionOrder, allow_cross_day: bool) -> bool:
-    """判断候选订单是否落在主订单的搭批窗口内。"""
+    """判断候选订单是否落在主订单的搭批窗口内（基于班次距离）。"""
     if candidate.start_datetime < primary.start_datetime:
         return False
-    if not allow_cross_day and candidate.start_datetime.date() != primary.start_datetime.date():
-        return False
-    window_hours = _get_window_hours(primary)
-    delta_hours = (candidate.start_datetime - primary.start_datetime).total_seconds() / 3600
-    return delta_hours <= window_hours + 1e-6
+
+    category = (primary.product_category or '').lower()
+    work_center = (primary.work_center or '').strip().upper()
+    is_tube_cond = (category == 'conditioner' and work_center in TUBE_CONDITIONER_LINES)
+
+    # Cross-day rule: shampoo never crosses day; tube conditioner can
+    if not is_tube_cond:
+        if candidate.start_datetime.date() != primary.start_datetime.date():
+            return False
+    else:
+        if not allow_cross_day and candidate.start_datetime.date() != primary.start_datetime.date():
+            return False
+
+    max_shifts = _get_max_shift_window(primary)
+    dist = _shift_distance(
+        primary.shift or 'N', primary.start_datetime.date(),
+        candidate.shift or 'N', candidate.start_datetime.date(),
+    )
+    return 0 <= dist <= max_shifts
 
 
 def _tolerance_band(value: float) -> float:
@@ -871,21 +914,29 @@ def _combination_respects_work_center(orders: List[ProductionOrder]) -> bool:
         return True
     centers = {(order.work_center or '').strip() for order in orders}
     if '' in centers:
-        # 缺失产线信息时，如果存在多个非空产线则不允许跨线
         if len(centers) > 1:
             return False
     if len(centers) <= 1:
         return True
 
+    # Pairwise check: every pair of distinct centers must be an allowed pair
     is_conditioner = all((order.product_category or '').lower() == 'conditioner' for order in orders)
-    if is_conditioner:
-        return centers.issubset(ALLOWED_CONDITIONER_LINES)
-
     is_shampoo = all((order.product_category or '').lower() == 'shampoo' for order in orders)
-    if is_shampoo:
-        return centers.issubset(ALLOWED_SHAMPOO_MIX_LINES)
 
-    return False
+    if is_conditioner:
+        allowed_pairs = ALLOWED_CONDITIONER_PAIRS
+    elif is_shampoo:
+        allowed_pairs = ALLOWED_SHAMPOO_PAIRS
+    else:
+        return False
+
+    center_list = list(centers)
+    for i in range(len(center_list)):
+        for j in range(i + 1, len(center_list)):
+            pair = frozenset({center_list[i], center_list[j]})
+            if pair not in allowed_pairs:
+                return False
+    return True
 
 
 def _build_batch_candidates(order: ProductionOrder):
@@ -1172,11 +1223,18 @@ def _get_allowed_msu_sizes(category: Optional[str]) -> List[float]:
         max_units = int(round(2.2 * max_multiplier / 1.1))  # 12
         for mult in range(max_units, 0, -1):
             _add_multiple(1.1, mult)
+        return sorted(sizes, reverse=True)
     else:
         for mult in range(max_multiplier, 0, -1):
             _add_multiple(2.2, mult)
 
-    return sorted(sizes, reverse=True)
+    # For shampoo: prioritize 4.4-multiples (compatible with GSS1+2) before
+    # GSS3-only sizes (odd multiples of 2.2 like 6.6, 11.0).
+    # This ensures the planning algorithm first tries targets that can run on
+    # either GSS1+2 or GSS3, maximizing system utilization balance.
+    gss12_compatible = sorted([s for s in sizes if abs(round(s / 4.4) * 4.4 - s) < 0.01], reverse=True)
+    gss3_only = sorted([s for s in sizes if s not in gss12_compatible], reverse=True)
+    return gss12_compatible + gss3_only
 
 
 def _is_sibling_segment(a: ProductionOrder, b: ProductionOrder) -> bool:
@@ -1439,8 +1497,12 @@ def _system_score_tuple(
     usage = tracker.get_shift_usage(system, batch_date, shift)
     limit = tracker.get_shift_limit(system, shift)
     overflow_flag = 1 if limit and usage + physical_batches > limit else 0
-    gss12_small_penalty = 1 if (_is_gss12_system(system) and target_size < GSS12_MIN_MOQ - _tolerance_band(GSS12_MIN_MOQ)) else 0
     priority = _system_priority_score(system)
+
+    # 核心原则：先填满大容量系统（GSS1+2 priority=0），再用小容量系统（GSS3 priority=1）。
+    # 当系统接近满载时 high_load_flag 触发，将新批次分流到其他系统。
+    utilization_ratio = ((usage + physical_batches) / limit) if limit and limit > 0 else 0.0
+    high_load_flag = 1 if utilization_ratio >= 0.75 else 0
 
     closest = float('inf')
     sizes = list(system.supported_msu)
@@ -1462,7 +1524,7 @@ def _system_score_tuple(
 
     return (
         overflow_flag,
-        gss12_small_penalty,
+        high_load_flag,
         priority,
         usage,
         closest,
@@ -1500,9 +1562,9 @@ def _build_decision_explain(
     if not chosen_system or score_tuple is None:
         return header + ";System=UNASSIGNED"
 
-    overflow, gss12_small, priority, usage, closest, system_name = score_tuple
+    overflow, high_load, priority, usage, closest, system_name = score_tuple
     score_text = (
-        f"Score(overflow={overflow},gss12_small={gss12_small},priority={priority},"
+        f"Score(overflow={overflow},high_load={high_load},priority={priority},"
         f"usage={usage},closest={closest:.3f});System={system_name}"
     )
     return header + ";" + score_text
@@ -1539,12 +1601,12 @@ def _select_system_for_target(
         system = system_lookup.get(sid)
         if not system or not system.supported_msu:
             return (float('inf'), sid)
-        overflow_flag, gss12_small_penalty, priority, usage, closest, _name = _system_score_tuple(
+        overflow_flag, high_load_flag, priority, usage, closest, _name = _system_score_tuple(
             system, target_size, tracker, batch_date, shift
         )
         return (
             overflow_flag,
-            gss12_small_penalty,
+            high_load_flag,
             priority,
             usage,
             closest,
@@ -1725,6 +1787,8 @@ def _rebalance_overflow_batches(
                 continue
             if source_system.name != 'GSS3':
                 continue
+            # Only move batches whose orders are in the 12t_to_6t conversion list
+            # (allow_gss12_reduced_moq=True), since GSS1+2 can only do 2.2 for those.
             candidates = [
                 batch for batch in batches
                 if batch.assigned_system == source_system

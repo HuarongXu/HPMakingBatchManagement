@@ -266,7 +266,7 @@ def _classify_alerts(alerts: List[str]) -> list:
         seen.add(alert_text)
         if "超出" in alert_text or "超限" in alert_text:
             severity = "critical"
-        elif "欠装" in alert_text or "不足" in alert_text or "低于" in alert_text:
+        elif "欠装" in alert_text or "不足" in alert_text or "低于" in alert_text or "警告" in alert_text or "缺少" in alert_text:
             severity = "warning"
         else:
             severity = "info"

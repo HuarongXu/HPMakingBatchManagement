@@ -703,6 +703,14 @@ body {
     color: var(--foreground);
 }
 
+/* Batch note cell — allow wrapping for longer notes */
+.batch-note-cell {
+    white-space: normal !important;
+    max-width: 260px;
+    word-break: break-all;
+    font-size: 11px;
+}
+
 /* Summary data tables — compact, centered */
 .summary-data-table {
     font-size: 12px;

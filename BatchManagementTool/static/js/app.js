@@ -186,6 +186,7 @@ const OrdersTable = {
     pageSize: 50,
     searchQuery: '',
     activeFilters: { system: [], shift: [], type: [], status: [], wc: [], date: [] },
+    _alertFilter: null,
 
     async init() {
         try {
@@ -204,6 +205,7 @@ const OrdersTable = {
         const system = params.get('system');
         const date = params.get('date');
         const shift = params.get('shift');
+        const alertText = params.get('alert');
         let hasFilter = false;
 
         if (system) {
@@ -225,6 +227,10 @@ const OrdersTable = {
             document.querySelectorAll('.filter-btn[data-filter-group="date"]').forEach(btn => {
                 if (btn.dataset.filter === date) btn.classList.add('active');
             });
+            hasFilter = true;
+        }
+        if (alertText) {
+            this._alertFilter = alertText;
             hasFilter = true;
         }
         if (hasFilter) {
@@ -293,6 +299,7 @@ const OrdersTable = {
         if (clearFilters) {
             clearFilters.addEventListener('click', () => {
                 this.activeFilters = { system: [], shift: [], type: [], status: [], wc: [], date: [] };
+                this._alertFilter = null;
                 document.querySelectorAll('.filter-btn.active').forEach(b => b.classList.remove('active'));
                 this.page = 1;
                 this.applyFilters();
@@ -315,7 +322,8 @@ const OrdersTable = {
                 (o.material || '').toLowerCase().includes(q) ||
                 (o.material_description || '').toLowerCase().includes(q) ||
                 (o.wip_code || '').toLowerCase().includes(q) ||
-                (o.batch_id || '').toLowerCase().includes(q)
+                (o.batch_id || '').toLowerCase().includes(q) ||
+                (o.batch_note || '').toLowerCase().includes(q)
             );
         }
 
@@ -337,6 +345,12 @@ const OrdersTable = {
         }
         if (f.date && f.date.length) {
             data = data.filter(o => f.date.includes(o.production_date));
+        }
+
+        // Alert text filter (from URL ?alert=...)
+        if (this._alertFilter) {
+            const alertQ = this._alertFilter;
+            data = data.filter(o => o.alerts && o.alerts.some(a => a.includes(alertQ)));
         }
 
         this.filtered = data;
@@ -374,7 +388,11 @@ const OrdersTable = {
         const q = this.searchQuery;
 
         if (countEl) {
-            countEl.textContent = `${total ? start + 1 : 0}-${end} / ${total} (${this.allOrders.length} total)`;
+            let countText = `${total ? start + 1 : 0}-${end} / ${total} (${this.allOrders.length} total)`;
+            if (this._alertFilter) {
+                countText += ` | 🔍 Alert filter: "${this._alertFilter.substring(0, 40)}"`;
+            }
+            countEl.textContent = countText;
         }
 
         tbody.innerHTML = slice.map((o, idx) => {
@@ -397,7 +415,7 @@ const OrdersTable = {
                 <td>${o.assigned_system}</td>
                 <td class="col-mono">${highlightText(o.batch_id, q)}</td>
                 <td class="col-mono calc-cell" data-calc-value="${o.batch_count}">${o.batch_count}</td>
-                <td title="${escapeHtml(o.batch_note || '')}">${escapeHtml((o.batch_note || '').substring(0, 30))}</td>
+                <td class="batch-note-cell" title="${escapeHtml(o.batch_note || '')}">${highlightText(o.batch_note || '', q)}</td>
                 <td>${o.alerts && o.alerts.length ? '⚠' : ''}</td>
             </tr>`;
         }).join('');
@@ -696,6 +714,9 @@ const AlertsView = {
             if (a.system) params.push('system=' + encodeURIComponent(a.system));
             if (a.date) params.push('date=' + encodeURIComponent(a.date));
             if (a.shift) params.push('shift=' + encodeURIComponent(a.shift));
+            if (!a.system && !a.date && !a.shift && a.text) {
+                params.push('alert=' + encodeURIComponent(a.text));
+            }
             if (params.length) linkHref += '?' + params.join('&');
             return `
             <div class="alert-item ${a.severity} animate-in" style="animation-delay:${i * 30}ms">
@@ -1168,7 +1189,7 @@ const DashboardCharts = {
     _highlightShiftRows(system, dateLabel) {
         if (!this.shiftHeatmapChart || !this.shiftYLabels) return;
         const shifts = ['N', 'D', 'M'];
-        const targetLabels = shifts.map(s => `${system} / ${s}`);
+        const targetLabels = shifts.map(s => `${s} / ${system}`);
         const targetYIndices = targetLabels.map(l => this.shiftYLabels.indexOf(l)).filter(i => i >= 0);
 
         if (targetYIndices.length === 0) return;
@@ -1201,14 +1222,13 @@ const DashboardCharts = {
             const resp = await fetch('/api/heatmap');
             const data = await resp.json();
 
-            // Build shift-level grid: each system has 3 rows (N, D, M)
+            // Build shift-level grid grouped by shift (N, D, M), then systems within each shift
             const allSystems = [...new Set(data.map(d => d.system))];
-            // Reverse for bottom-up rendering
+            // Shifts ordered bottom-up: M at bottom, N at top
             const shifts = ['M', 'D', 'N'];
             const yLabels = [];
-            allSystems.reverse();
-            allSystems.forEach(sys => {
-                shifts.forEach(s => yLabels.push(`${sys} / ${s}`));
+            shifts.forEach(s => {
+                allSystems.forEach(sys => yLabels.push(`${s} / ${sys}`));
             });
 
             const dates = [...new Set(data.map(d => d.date))].sort();
@@ -1223,7 +1243,7 @@ const DashboardCharts = {
                 const x = dates.indexOf(d.date);
                 if (!d.shifts) return;
                 d.shifts.forEach(s => {
-                    const yIdx = yLabels.indexOf(`${d.system} / ${s.shift}`);
+                    const yIdx = yLabels.indexOf(`${s.shift} / ${d.system}`);
                     if (yIdx < 0) return;
                     const ratio = s.limit ? s.used / s.limit : 0;
                     heatData.push({
@@ -1271,9 +1291,16 @@ const DashboardCharts = {
                         fontSize: 11,
                         formatter: val => {
                             if (val.includes('Total')) return '{bold|' + val + '}';
-                            return val;
+                            // Show shift letter prominently for first system in each shift group
+                            const parts = val.split(' / ');
+                            const shiftLetter = parts[0];
+                            const sysName = parts[1] || '';
+                            return `{shift|${shiftLetter}} ${sysName}`;
                         },
-                        rich: { bold: { fontSize: 12, fontWeight: 700, color: t.labelColor } }
+                        rich: {
+                            bold: { fontSize: 12, fontWeight: 700, color: t.labelColor },
+                            shift: { fontSize: 12, fontWeight: 700, color: t.accentLight, padding: [0, 2, 0, 0] }
+                        }
                     },
                     splitLine: { show: false },
                     axisTick: { show: false },
