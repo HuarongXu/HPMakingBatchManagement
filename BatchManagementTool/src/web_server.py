@@ -55,6 +55,14 @@ def _safe_str(value, default: str = "") -> str:
     return str(value)
 
 
+def _clean_wip(value) -> str:
+    """Return WIP code as integer string (no decimal), e.g. '21141975'."""
+    s = _safe_str(value)
+    if s.endswith('.0'):
+        s = s[:-2]
+    return s
+
+
 def _order_to_dict(order: ProductionOrder) -> dict:
     return {
         "order_number": _safe_str(order.original_order_number) or _safe_str(order.order_number),
@@ -71,7 +79,7 @@ def _order_to_dict(order: ProductionOrder) -> dict:
         "uom": _safe_str(order.uom),
         "msu_demand": round(order.msu_demand, 3) if order.msu_demand else 0,
         "suf": order.suf,
-        "wip_code": _safe_str(order.wip_code),
+        "wip_code": _clean_wip(order.wip_code),
         "product_type": _safe_str(order.product_type),
         "assigned_system": order.assigned_system.name if order.assigned_system else "",
         "batch_id": _safe_str(order.batch_id),
@@ -88,7 +96,7 @@ def _order_to_dict(order: ProductionOrder) -> dict:
 def _batch_to_dict(batch: Batch) -> dict:
     return {
         "batch_id": _safe_str(batch.batch_id),
-        "wip_code": _safe_str(batch.wip_code),
+        "wip_code": _clean_wip(batch.wip_code),
         "msu_size": batch.msu_size,
         "assigned_system": batch.assigned_system.name if batch.assigned_system else "",
         "shift": _safe_str(batch.shift),

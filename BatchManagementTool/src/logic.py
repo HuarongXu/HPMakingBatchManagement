@@ -495,7 +495,7 @@ def _preferred_shampoo_chunks(
     chunks = [preferred_size] * primary_count
     chunks.append(matched_remainder)
     total = sum(chunks)
-    if not _within_tolerance(total, demand):
+    if not _within_hard_tolerance(demand, total):
         return None
 
     return chunks
@@ -538,10 +538,9 @@ def _split_single_order(order: ProductionOrder, systems: List[MakingSystem]) -> 
     chunk_total = sum(chunks)
     
     # 验证拆分后的总和是否在可接受范围内
-    # 对于大订单拆分，使用更宽松的容差（±0.15 或±2%，取较大值）
-    # 以覆盖实际生产中的数值波动
-    validation_tol = max(0.15, abs(demand) * 0.02)
-    if len(chunks) <= 1 or not (demand - validation_tol <= chunk_total <= demand + validation_tol):
+    # chunks 量化为 MOQ 步长 (2.2/4.4)，天然会略大于 demand，
+    # 因此使用 chunk_total 的 hard tolerance 来验证合理性
+    if len(chunks) <= 1 or not _within_hard_tolerance(demand, chunk_total):
         order.segment_index = 1
         order.segment_total = 1
         return [order]
