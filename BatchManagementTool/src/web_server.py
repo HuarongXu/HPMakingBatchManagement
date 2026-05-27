@@ -191,14 +191,14 @@ def _build_heatmap_data(batches: List[Batch]) -> list:
                 "M": s.m_shift_limit or 0,
             }
 
-    # Order systems: GSS1+GSS2 first, then GSS3, then GSS4(Cond), others last
+    # Order systems: GSS1+GSS2 first, then GSS3, then Tandem, others last
     def _system_sort_key(name: str) -> tuple:
         lower = name.lower()
         if 'gss1' in lower and 'gss2' in lower:
             return (0, name)
         if 'gss3' in lower:
             return (1, name)
-        if 'gss4' in lower:
+        if 'tandem' in lower:
             return (2, name)
         return (3, name)
 

@@ -11,7 +11,7 @@
 - **自动排批** — 根据 WIP Code、产品类型、MOQ 规则自动形成合法批次
 - **搭批优化** — 支持多订单搭批、小单配对、跨班次组合
 - **双层容差控制** — Preferred / Hard 容差机制，兼顾最优与可行
-- **系统自动分配** — GSS1+2 / GSS3 / GSS4 智能选择与评分
+- **系统自动分配** — GSS1+2 / GSS3 / Tandem 智能选择与评分
 - **Web Dashboard** — 浏览器交互式仪表盘，含总览、订单明细、汇总、告警四大视图
 - **可解释输出** — Decision Explain 提供逐单决策解释
 
@@ -77,6 +77,7 @@ HPMakingBatchManagement/
 │   │   ├── summary.html     ← 汇总视图页
 │   │   └── alerts.html      ← 告警中心页
 │   └── tests/               ← 测试用例
+│       └── test_tandem_halfbatch.py ← Tandem/HalfBatch 告警测试
 ├── scripts/
 │   └── download_tool.py     ← GitHub 下载脚本
 └── Requirement.md           ← 需求与实施说明文档
@@ -110,6 +111,10 @@ HPMakingBatchManagement/
 ### 4. Alerts 告警中心
 - 按严重级别分类：超限（红）、警告（黄）、信息（蓝）
 - 一键筛选查看各类别告警
+- **三类预警**：
+  - **产能超限** — 系统×日期×班次的实际批次数超过上限
+  - **Tandem 1.1 过多** — 同一班次使用超过 3 批 1.1 MSU 规格，效率下降警告
+  - **Half Batch 超限** — GSS1+2 半批(2.2)每班次超过 5 批（因 GSS2 不支持半批，仅 GSS1 可做）
 
 ### 操作手册
 - 点击页面右上角的「操作手册」按钮可直接跳转查看完整使用说明

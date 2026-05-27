@@ -124,7 +124,7 @@ $$
 |---|---|---|
 | GSS1 + GSS2 | Shampoo | 主力系统，优先承担 4.4 及以上目标，特定白名单可做 2.2 half batch |
 | GSS3 | Shampoo | 2.2 小批的主力承接系统 |
-| GSS4 (Cond) | Conditioner | 护发素专用系统，可承接 1.1 / 2.2 / 4.4 及其组合 |
+| Tandem | Conditioner | 护发素专用系统，可承接 1.1 / 2.2 / 4.4 及其组合 |
 
 系统数据来源见 [BatchManagementTool/src/data_loader.py](BatchManagementTool/src/data_loader.py) 与 [BatchManagementTool/src/logic.py](BatchManagementTool/src/logic.py#L580-L659)。
 
@@ -389,7 +389,7 @@ $$
 |---|---|---|
 | `overflow` | 分配后是否会超该日期该班次上限 | 是 |
 | `high_load` | 分配后利用率是否 ≥ 75% (高负载分流) | 是 |
-| `priority` | 系统优先级：GSS1+GSS2=0, GSS3=1, GSS4=2 | 是 |
+| `priority` | 系统优先级：GSS1+GSS2=0, GSS3=1, Tandem=2 | 是 |
 | `usage` | 该日期该班次已占用批次数 | 是 |
 | `closest` | 系统能力与目标规格的接近程度 | 是 |
 | `name` | 最终稳定排序字段 | 是 |
@@ -602,6 +602,34 @@ $$
 
 ---
 
+## 13A. Tandem 1.1 批次预警
+
+当 Tandem 系统在某日某班次分配了超过 **3 个** 1.1 MSU 批次时，系统会对所有相关订单生成警告：
+
+> 警告: {日期} {班次}班 Tandem 系统使用 1.1 MSU 批次 N 批，超过建议上限 3 批。
+
+此规则仅为警告提示，不会修改分配逻辑。
+
+仅影响 1.1 MSU 批次，2.2 / 4.4 批次不参与此计数。
+
+---
+
+## 13B. GSS1+GSS2 Half Batch 班次上限
+
+GSS1+GSS2 系统中，half batch（2.2 MSU）**只能在 GSS1 上执行**，GSS2 不支持 half batch。
+
+因此 half batch 的班次上限受限于 GSS1 单独的产能：**每个班次最多 5 批**。
+
+当某日某班次 GSS1+GSS2 的 half batch 超过 5 批时，系统会对所有相关订单生成警告：
+
+> 警告: {日期} {班次}班 GSS1+GSS2 half batch 计划 N 批，超出 GSS1 单独上限 5 批（GSS2 不支持 half batch）。
+
+此规则仅为警告提示，不会修改分配逻辑。
+
+仅影响 2.2 MSU 批次（half batch），4.4 及以上的标准批次不参与此计数。
+
+---
+
 ## 14. 当前版本边界说明
 
 当前版本仍有以下边界：
@@ -610,7 +638,7 @@ $$
 2. `closest` 在当前标准目标下多数为 0，主要起兜底排序作用；
 3. `Decision Explain` 当前输出的是最终选中系统分数，不包含所有落选候选的完整对比；
 4. `MSU Demand` 当前仍按输入计划量运行，而非严格实时换算；
-5. GSS4 的目标已经比过去更合理，但后续仍可继续升级为“枚举所有合法组合后选最接近目标”的增强版。
+5. Tandem 的目标已经比过去更合理，但后续仍可继续升级为"枚举所有合法组合后选最接近目标"的增强版。
 
 ---
 
@@ -696,9 +724,12 @@ Web Dashboard 基于 Flask 构建，前端使用原生 JavaScript + ECharts 图�
 
 ---
 
-> 当前文档基于 2026-05-18 代码版本整理。
+> 当前文档基于 2026-05-27 代码版本整理。
 >
 > **本次更新要点**：
+> - GSS4 (Cond) 统一更名为 **Tandem**（代码、数据、UI 全部同步）
+> - 新增 **Tandem 1.1 批次预警**：同一班次 >3 批 1.1 MSU 时告警
+> - 新增 **GSS1+GSS2 half batch 班次上限**：2.2 MSU half batch 每班次 ≤5 批（因 GSS2 不支持 half batch）
 > - 搭批窗口改为班次距离：Shampoo dist≤1（本班+下1班，不跨日）；Tube Conditioner dist≤2（本班+下2班，可跨日）
 > - 系统评分改为 6 元组：(overflow, high_load, priority, usage, closest, name)，移除旧的 gss12_small 惩罚
 > - GSS1+2 优先级=0（最高），75% 高负载阈值触发分流

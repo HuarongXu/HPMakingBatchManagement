@@ -68,6 +68,11 @@ def _is_gss12_system(system: MakingSystem) -> bool:
     return 'gss1' in name and 'gss2' in name
 
 
+def _is_tandem_system(system: MakingSystem) -> bool:
+    name = (system.name or '').lower()
+    return 'tandem' in name
+
+
 def _system_allows_target_for_orders(system: MakingSystem, target_size: float, orders: List[ProductionOrder]) -> bool:
     """判断系统是否允许该目标尺寸。
     GSS1+2 可以生产 4.4 及其倍数（任何订单）；
@@ -1616,6 +1621,57 @@ def _select_system_for_target(
     return system_lookup.get(chosen_id)
 
 
+def _check_tandem_11_alerts(batches: List[Batch]) -> None:
+    """当 Tandem 系统使用 1.1 MSU 批次，且同一班次超过 3 批时，添加警告。"""
+    # {(date, shift): count}
+    tandem_11_usage: Dict[Tuple[str, str], int] = defaultdict(int)
+    tandem_11_batches: Dict[Tuple[str, str], List[Batch]] = defaultdict(list)
+    for batch in batches:
+        if not batch.assigned_system or not _is_tandem_system(batch.assigned_system):
+            continue
+        if batch.msu_size and abs(batch.msu_size - 1.1) < 0.01:
+            key = (batch.date or '', batch.shift or '')
+            tandem_11_usage[key] += batch.physical_batches
+            tandem_11_batches[key].append(batch)
+
+    for (usage_date, shift), count in tandem_11_usage.items():
+        if count > 3:
+            alert_msg = (
+                f"警告: {usage_date} {shift}班 Tandem 系统使用 1.1 MSU 批次 {count} 批，超过建议上限 3 批。"
+            )
+            for batch in tandem_11_batches[(usage_date, shift)]:
+                for order in batch.orders:
+                    order.alerts.append(alert_msg)
+
+
+GSS12_HALF_BATCH_SHIFT_LIMIT = 5
+
+
+def _check_gss12_half_batch_limit(batches: List[Batch]) -> None:
+    """GSS1+GSS2 的 half batch (2.2 MSU) 每个班次最多 5 批，
+    因为 GSS2 不能做 half batch，只有 GSS1 可以（GSS1 上限 5 批/班次）。"""
+    # {(date, shift): count}
+    half_usage: Dict[Tuple[str, str], int] = defaultdict(int)
+    half_batches: Dict[Tuple[str, str], List[Batch]] = defaultdict(list)
+    for batch in batches:
+        if not batch.assigned_system or not _is_gss12_system(batch.assigned_system):
+            continue
+        if batch.msu_size and abs(batch.msu_size - 2.2) < 0.01:
+            key = (batch.date or '', batch.shift or '')
+            half_usage[key] += batch.physical_batches
+            half_batches[key].append(batch)
+
+    for (usage_date, shift), count in half_usage.items():
+        if count > GSS12_HALF_BATCH_SHIFT_LIMIT:
+            alert_msg = (
+                f"警告: {usage_date} {shift}班 GSS1+GSS2 half batch 计划 {count} 批，"
+                f"超出 GSS1 单独上限 {GSS12_HALF_BATCH_SHIFT_LIMIT} 批（GSS2 不支持 half batch）。"
+            )
+            for batch in half_batches[(usage_date, shift)]:
+                for order in batch.orders:
+                    order.alerts.append(alert_msg)
+
+
 def _create_and_assign_batches(orders: List[ProductionOrder], systems: List[MakingSystem]):
     tracker = BatchCapacityTracker(systems)
     batches: List[Batch] = []
@@ -1704,6 +1760,8 @@ def _create_and_assign_batches(orders: List[ProductionOrder], systems: List[Maki
     for batch in batches:
         _refresh_batch_notes(batch)
     tracker.rebuild_usage(batches)
+    _check_tandem_11_alerts(batches)
+    _check_gss12_half_batch_limit(batches)
     return batches, tracker.summarize()
 
 

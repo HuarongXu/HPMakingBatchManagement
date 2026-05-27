@@ -16,6 +16,7 @@ venv/
 # Output reports (generated)
 BatchManagementTool/output/batch_report_*.xlsx
 BatchManagementTool/output/~$*.xlsx
+BatchManagementTool/output/ppt-*.html
 
 # OS
 Thumbs.db
