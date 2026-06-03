@@ -169,6 +169,16 @@ if exist "!UPDATE_SOURCE!\BatchManagementTool\requirements.txt" (
     copy /y "!UPDATE_SOURCE!\BatchManagementTool\requirements.txt" "%~dp0requirements.txt" >nul 2>&1
 )
 
+:: Update program config data files (system names, conversion lists)
+:: NOTE: do NOT overwrite Parameter.csv - that is user-maintained data
+if not exist "%~dp0data" mkdir "%~dp0data"
+if exist "!UPDATE_SOURCE!\BatchManagementTool\data\Making Capacity.xlsx" (
+    copy /y "!UPDATE_SOURCE!\BatchManagementTool\data\Making Capacity.xlsx" "%~dp0data\Making Capacity.xlsx" >nul 2>&1
+)
+if exist "!UPDATE_SOURCE!\BatchManagementTool\data\12t_to_6t_conversion_list.xlsx" (
+    copy /y "!UPDATE_SOURCE!\BatchManagementTool\data\12t_to_6t_conversion_list.xlsx" "%~dp0data\12t_to_6t_conversion_list.xlsx" >nul 2>&1
+)
+
 :: Update script files
 for %%F in ("!UPDATE_SOURCE!\BatchManagementTool\*.bat") do (
     copy /y "%%F" "%~dp0" >nul 2>&1
