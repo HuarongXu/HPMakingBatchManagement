@@ -1757,6 +1757,7 @@ def _create_and_assign_batches(orders: List[ProductionOrder], systems: List[Maki
 
     _second_pass_merge_batches(batches, tracker)
     _rebalance_overflow_batches(batches, tracker, system_lookup)
+    _split_gss3_odd_multiple_batches(batches, tracker, system_lookup, orders)
     for batch in batches:
         _refresh_batch_notes(batch)
     tracker.rebuild_usage(batches)
@@ -1871,6 +1872,217 @@ def _rebalance_overflow_batches(
                 break
         if not moved:
             break
+
+
+# GSS3 专属的 2.2 奇数倍目标（无法被 4.4 整除），如 6.6=3×2.2, 11.0=5×2.2。
+# 这类目标只能在 GSS3 上多批生产；若 GSS1+2 有空余产能，
+# 拆成 4.4(GSS1+2) + 2.2(GSS3) 可减少物理批次数并平衡负载。
+_GSS3_ODD_SPLIT_TARGETS = (6.6, 11.0)
+
+
+def _make_order_split(
+    order: ProductionOrder, amount_a: float, amount_b: float
+) -> Tuple[ProductionOrder, ProductionOrder]:
+    """将单个订单按 MSU 量拆成两个 segment（amount_a 在前，amount_b 在后）。"""
+    total = amount_a + amount_b
+    base_qty = order.planned_quantity or 0.0
+    base_no = order.original_order_number or order.order_number
+
+    seg_a = copy.deepcopy(order)
+    seg_b = copy.deepcopy(order)
+    seg_a.order_number = f"{base_no}-1"
+    seg_b.order_number = f"{base_no}-2"
+    seg_a.original_order_number = base_no
+    seg_b.original_order_number = base_no
+    seg_a.msu_demand = amount_a
+    seg_b.msu_demand = amount_b
+    if total > 0:
+        seg_a.planned_quantity = base_qty * amount_a / total
+        seg_b.planned_quantity = base_qty * amount_b / total
+    seg_a.segment_index, seg_a.segment_total = 1, 2
+    seg_b.segment_index, seg_b.segment_total = 2, 2
+    seg_a.alerts = list(order.alerts)
+    seg_b.alerts = list(order.alerts)
+    for seg in (seg_a, seg_b):
+        seg.assigned_system = None
+        seg.batch_id = None
+        seg.batch_note = None
+        seg.batch_count = 0.0
+    return seg_a, seg_b
+
+
+def _distribute_orders_to_buckets(
+    batch_orders: List[ProductionOrder],
+    bucket_targets: List[float],
+    global_orders: List[ProductionOrder],
+) -> Optional[List[List[ProductionOrder]]]:
+    """按时间顺序把订单依次填入各 bucket（前面的 bucket 先填满）。
+    当某个订单跨越 bucket 边界时拆成两个 segment。
+    返回每个 bucket 的订单列表；若遇到无法安全拆分的情况返回 None。"""
+    pending = sorted(batch_orders, key=lambda o: o.start_datetime)
+    buckets: List[List[ProductionOrder]] = [[] for _ in bucket_targets]
+    loads = [0.0] * len(bucket_targets)
+    splits: List[Tuple[ProductionOrder, List[ProductionOrder]]] = []
+
+    bi = 0
+    i = 0
+    while i < len(pending):
+        if bi >= len(bucket_targets):
+            return None  # 还有订单但没有 bucket 容纳，放弃
+        order = pending[i]
+        demand = order.msu_demand or 0.0
+        target = bucket_targets[bi]
+        hard_tol = _hard_tolerance_band(target)
+        pref_tol = _tolerance_band(target)
+        space = target + hard_tol - loads[bi]
+
+        if demand <= space + 1e-9:
+            buckets[bi].append(order)
+            loads[bi] += demand
+            i += 1
+            if loads[bi] >= target - pref_tol and bi < len(bucket_targets) - 1:
+                bi += 1
+            continue
+
+        # 订单跨越 bucket 边界，需要拆分
+        if bi >= len(bucket_targets) - 1:
+            return None  # 最后一个 bucket 不能再溢出
+        if order.segment_total > 1:
+            return None  # 已是拆分段，避免嵌套拆分
+        first_amount = target - loads[bi]
+        if first_amount <= 1e-6:
+            bi += 1
+            continue
+        second_amount = demand - first_amount
+        seg_a, seg_b = _make_order_split(order, first_amount, second_amount)
+        buckets[bi].append(seg_a)
+        loads[bi] += first_amount
+        pending[i] = seg_b  # 余量继续向后分配
+        splits.append((order, [seg_a, seg_b]))
+        bi += 1
+
+    if any(not bucket for bucket in buckets):
+        return None  # 存在空 bucket，拆分无意义
+
+    # 将拆分结果同步到全局订单列表，保证下游报表能看到拆分行
+    for original, segs in splits:
+        if original in global_orders:
+            pos = global_orders.index(original)
+            global_orders[pos:pos + 1] = segs
+        else:
+            global_orders.extend(segs)
+
+    return buckets
+
+
+def _is_gss3_odd_split_candidate(batch: Batch, gss3_system: MakingSystem) -> bool:
+    if not batch.assigned_system or not batch.orders:
+        return False
+    if batch.assigned_system.system_id != gss3_system.system_id:
+        return False
+    if not batch.msu_size:
+        return False
+    if not any(abs(batch.msu_size - target) < 0.05 for target in _GSS3_ODD_SPLIT_TARGETS):
+        return False
+    for order in batch.orders:
+        if (order.product_category or '').lower() != 'shampoo':
+            return False
+        if not order.available_systems:
+            return False
+        if not any(_is_gss12_system(system) for system in order.available_systems):
+            return False
+    return True
+
+
+def _split_gss3_odd_multiple_batches(
+    batches: List[Batch],
+    tracker: BatchCapacityTracker,
+    system_lookup: Dict[str, MakingSystem],
+    global_orders: List[ProductionOrder],
+) -> None:
+    """将 GSS3 上的 6.6/11.0 奇数倍批次拆成 4.4(GSS1+2)×n + 2.2(GSS3)，
+    前提是能减少物理批次数且 GSS1+2 不会因此超班次上限。"""
+    gss12_system = next(
+        (system for system in system_lookup.values() if _is_gss12_system(system)),
+        None,
+    )
+    gss3_system = next(
+        (
+            system
+            for system in system_lookup.values()
+            if system.name and 'gss3' in system.name.lower()
+        ),
+        None,
+    )
+    if not gss12_system or not gss3_system:
+        return
+
+    tracker.rebuild_usage(batches)
+
+    idx = 0
+    while idx < len(batches):
+        batch = batches[idx]
+        if not _is_gss3_odd_split_candidate(batch, gss3_system):
+            idx += 1
+            continue
+
+        n12 = int(round((batch.msu_size - 2.2) / 4.4))
+        if n12 < 1:
+            idx += 1
+            continue
+
+        new_physical = n12 + 1
+        if new_physical >= batch.physical_batches:
+            idx += 1
+            continue
+
+        # GSS1+2 班次产能检查
+        limit12 = tracker.get_shift_limit(gss12_system, batch.shift)
+        usage12 = tracker.get_shift_usage(gss12_system, batch.date, batch.shift)
+        if limit12 and usage12 + n12 > limit12:
+            idx += 1
+            continue
+
+        bucket_targets = [4.4] * n12 + [2.2]
+        buckets = _distribute_orders_to_buckets(batch.orders, bucket_targets, global_orders)
+        if buckets is None:
+            idx += 1
+            continue
+
+        new_batches: List[Batch] = []
+        for bi, (target, bucket_orders) in enumerate(zip(bucket_targets, buckets)):
+            system = gss12_system if abs(target - 4.4) < 0.01 else gss3_system
+            anchor = min(bucket_orders, key=lambda o: o.start_datetime)
+            load = sum(order.msu_demand or 0.0 for order in bucket_orders)
+            new_batch = Batch(
+                batch_id=batch.batch_id if bi == 0 else f"{batch.batch_id}-S{bi}",
+                wip_code=batch.wip_code,
+                msu_size=target,
+                assigned_system=system,
+                shift=anchor.shift or batch.shift,
+                date=anchor.start_datetime.date().isoformat() if anchor.start_datetime else batch.date,
+                orders=bucket_orders,
+                current_load=load,
+                physical_batches=_calculate_physical_batches(system, target),
+            )
+            rebalance_note = (
+                f"批次再平衡: 原 GSS3 {batch.msu_size:.1f} MSU 批次拆分为 "
+                f"4.4(GSS1+2)×{n12} + 2.2(GSS3)，本段分配至 {system.name} ({target:.1f} MSU)。"
+            )
+            for order in bucket_orders:
+                order.assigned_system = system
+                order.batch_id = new_batch.batch_id
+                # 信息性说明（无需 take action），写入决策说明而非预警
+                order.decision_explain = rebalance_note
+            _refresh_batch_notes(new_batch)
+            new_batches.append(new_batch)
+
+        batches.pop(idx)
+        for offset, new_batch in enumerate(new_batches):
+            batches.insert(idx + offset, new_batch)
+        tracker.rebuild_usage(batches)
+        idx += len(new_batches)
+
 
 def process_logic(all_data: Dict[str, pd.DataFrame]) -> Tuple[List[ProductionOrder], List[Batch], List[str]]:
     """
