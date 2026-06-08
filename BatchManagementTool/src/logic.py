@@ -2130,6 +2130,21 @@ def process_logic(all_data: Dict[str, pd.DataFrame]) -> Tuple[List[ProductionOrd
     print("\n核心逻辑处理完成（第三阶段：基础搭批）。")
     
     processed_orders = production_orders
+
+    # 将“未找到可搭批订单，单独开批”信息提升为 info 级别 Alert，便于在告警中心查看
+    for order in production_orders:
+        note = order.batch_note
+        if note and note.startswith("未找到可搭批订单"):
+            date_str = order.start_datetime.strftime('%Y-%m-%d') if order.start_datetime else ''
+            shift_str = f"{order.shift}班" if order.shift else ''
+            system_str = order.assigned_system.name if order.assigned_system else ''
+            display_no = order.original_order_number or order.order_number
+            alert_text = " ".join(
+                part for part in [date_str, shift_str, system_str, f"订单 {display_no}", note] if part
+            )
+            if alert_text not in order.alerts:
+                order.alerts.append(alert_text)
+
     alerts = [alert for order in production_orders for alert in order.alerts]
     alerts.extend(capacity_notes)
     
