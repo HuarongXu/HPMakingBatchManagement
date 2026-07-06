@@ -1916,15 +1916,44 @@ def _distribute_orders_to_buckets(
     bucket_targets: List[float],
     global_orders: List[ProductionOrder],
 ) -> Optional[List[List[ProductionOrder]]]:
-    """按时间顺序把订单依次填入各 bucket（前面的 bucket 先填满）。
-    当某个订单跨越 bucket 边界时拆成两个 segment。
+    """把订单填入各 bucket（前面的 bucket 先填满）。
+    阶段一：不可再拆的整段（segment_total > 1）先整段放入尺寸匹配、尚未占用的 bucket；
+    阶段二：其余可拆订单按时间顺序填充未占用 bucket，跨桶边界时拆成两个 segment。
+    批次不含已拆分段时，行为与原逐时间填充实现等价。
     返回每个 bucket 的订单列表；若遇到无法安全拆分的情况返回 None。"""
-    pending = sorted(batch_orders, key=lambda o: o.start_datetime)
     buckets: List[List[ProductionOrder]] = [[] for _ in bucket_targets]
     loads = [0.0] * len(bucket_targets)
+    reserved = [False] * len(bucket_targets)
     splits: List[Tuple[ProductionOrder, List[ProductionOrder]]] = []
 
-    bi = 0
+    # 阶段一：把不可再拆的整段放入尺寸匹配、尚未占用的 bucket
+    for order in [o for o in batch_orders if o.segment_total > 1]:
+        demand = order.msu_demand or 0.0
+        placed = False
+        for bi, target in enumerate(bucket_targets):
+            if reserved[bi]:
+                continue
+            if _within_hard_tolerance(demand, target):
+                buckets[bi].append(order)
+                loads[bi] = demand
+                reserved[bi] = True
+                placed = True
+                break
+        if not placed:
+            return None  # 不可拆段无匹配 bucket，放弃拆分（维持原批）
+
+    # 阶段二：其余可拆订单按时间顺序填充未占用 bucket
+    pending = sorted(
+        [o for o in batch_orders if o.segment_total <= 1],
+        key=lambda o: o.start_datetime,
+    )
+
+    def _next_open_bucket(bi: int) -> int:
+        while bi < len(bucket_targets) and reserved[bi]:
+            bi += 1
+        return bi
+
+    bi = _next_open_bucket(0)
     i = 0
     while i < len(pending):
         if bi >= len(bucket_targets):
@@ -1941,17 +1970,15 @@ def _distribute_orders_to_buckets(
             loads[bi] += demand
             i += 1
             if loads[bi] >= target - pref_tol and bi < len(bucket_targets) - 1:
-                bi += 1
+                bi = _next_open_bucket(bi + 1)
             continue
 
         # 订单跨越 bucket 边界，需要拆分
         if bi >= len(bucket_targets) - 1:
             return None  # 最后一个 bucket 不能再溢出
-        if order.segment_total > 1:
-            return None  # 已是拆分段，避免嵌套拆分
         first_amount = target - loads[bi]
         if first_amount <= 1e-6:
-            bi += 1
+            bi = _next_open_bucket(bi + 1)
             continue
         second_amount = demand - first_amount
         seg_a, seg_b = _make_order_split(order, first_amount, second_amount)
@@ -1959,7 +1986,7 @@ def _distribute_orders_to_buckets(
         loads[bi] += first_amount
         pending[i] = seg_b  # 余量继续向后分配
         splits.append((order, [seg_a, seg_b]))
-        bi += 1
+        bi = _next_open_bucket(bi + 1)
 
     if any(not bucket for bucket in buckets):
         return None  # 存在空 bucket，拆分无意义
