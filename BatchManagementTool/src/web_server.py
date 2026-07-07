@@ -417,7 +417,7 @@ def start_server(
     target_date: Optional[str] = None,
     port: int = 8050,
 ):
-    """Populate data and start the Flask dev server."""
+    """Populate data and start the production WSGI server (waitress)."""
 
     # Build all data for templates / API
     summaries = build_summary_tables(orders)
@@ -533,4 +533,11 @@ def start_server(
     # Auto-open browser after short delay
     threading.Timer(1.5, lambda: webbrowser.open(url)).start()
 
-    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
+    # 使用生产级 WSGI 服务器 (waitress) 而非 Flask 开发服务器。
+    # 若环境未安装 waitress，则回退到 Flask 内置服务器以保证可用。
+    try:
+        from waitress import serve
+        serve(app, host="0.0.0.0", port=port, threads=8)
+    except ImportError:
+        print("提示: 未安装 waitress，回退到 Flask 开发服务器。可运行 pip install waitress 以启用生产模式。")
+        app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
