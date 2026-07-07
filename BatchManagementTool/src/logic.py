@@ -1845,15 +1845,23 @@ def _rebalance_overflow_batches(
                 continue
             if source_system.name != 'GSS3':
                 continue
-            # Only move batches whose orders are in the 12t_to_6t conversion list
-            # (allow_gss12_reduced_moq=True), since GSS1+2 can only do 2.2 for those.
+            # 候选：GSS3 上该班次、可在 GSS1+2 生产的批次。
+            # - 2.2 half-batch：仅 12t→6t 转换单（由 _system_allows_target_for_orders 保证）；
+            # - 4.4 及倍数：任意订单，但批内所有订单的 available_systems 必须包含 GSS1+2，
+            #   避免把仅 GSS3 可生产的产品误搬。
             candidates = [
                 batch for batch in batches
                 if batch.assigned_system == source_system
                 and batch.date == usage_date
                 and batch.shift == shift
-                and batch.msu_size <= GSS12_HALF_MOQ + _tolerance_band(GSS12_HALF_MOQ)
                 and _system_allows_target_for_orders(gss12_system, batch.msu_size, batch.orders)
+                and batch.orders
+                and all(
+                    gss12_system.system_id in {
+                        s.system_id for s in (order.available_systems or [])
+                    }
+                    for order in batch.orders
+                )
             ]
             candidates.sort(key=lambda b: (b.date, b.batch_id))
             for batch in candidates:
@@ -1866,6 +1874,11 @@ def _rebalance_overflow_batches(
                 batch.physical_batches = physical
                 for order in batch.orders:
                     order.assigned_system = gss12_system
+                    order.decision_explain = (
+                        f"批次再平衡: 原 GSS3 {batch.msu_size:.1f} MSU 批次因超缸"
+                        f"回迁至 {gss12_system.name}。"
+                    )
+                _refresh_batch_notes(batch)
                 moved = True
                 break
             if moved:
